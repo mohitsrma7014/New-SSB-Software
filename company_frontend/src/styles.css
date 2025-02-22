@@ -1,0 +1,12 @@
+
+/* Remove scrollbars if any */
+* {
+    box-sizing: border-box;
+}
+
+/* Optional: Apply this to the body if needed */
+body {
+    display: flex;
+    width: 100vw;
+    overflow: hidden;
+}

@@ -1,0 +1,144 @@
+id	date	component	pices	invoiceno	addpdf	heat_no	target1	total_produced	remaining	batch_number	verified_by
+161	2024-12-29	8603	208	1618	reports/ssb_SupplyOutward-2024-25-1618.pdf	51614 CR	0	0	0	NA	Shivam Sharma
+160	2024-12-29	8601	728	1617	reports/ssb_SupplyOutward-2024-25-1617.pdf	51261 by	0	0	0	na	Shivam Sharma
+159	2024-12-29	8601	347	1616	reports/ssb_SupplyOutward-2024-25-1616.pdf	51614 CR	0	0	0	na	Shivam Sharma
+158	2024-12-28	728.06.033.01	7	1615	reports/ssb_SupplyOutward-2024-25-1615.pdf	KC175652	0	0	0	NA	Shivam Sharma
+157	2024-12-28	728.06.033.01	17	1614	reports/ssb_SupplyOutward-2024-25-1614.pdf	A27021 SS-187	0	0	0	NA	Shivam Sharma
+156	2024-12-28	728.06.033.01	8	1613	reports/ssb_SupplyOutward-2024-25-1613.pdf	3280 SS-191	0	0	0	NA	Shivam Sharma
+155	2024-12-27	728.06.033.01	3	1612	reports/ssb_SupplyOutward-2024-25-1612.pdf	K186407 SS-190	0	0	0	NA	Shivam Sharma
+154	2024-12-27	10169794	948	1611	reports/ssb_SupplyOutward-2024-25-1611.pdf	49984	7500	7632	-132	PP-20241214-DA-05	Shivam Sharma
+153	2024-12-27	SU21094	72	1610	reports/ssb_SupplyOutward-2024-25-1610.pdf	7469 SS-217	0	0	0	NA	Shivam Sharma
+152	2024-12-27	10169794	5364	1609	reports/ssb_SupplyOutward-2024-25-1609.pdf	49984	7500	7632	-132	PP-20241214-DA-05	Shivam Sharma
+151	2024-12-28	728.06.033.01	243	1608	reports/ssb_SupplyOutward-2024-25-1608.pdf	A29548 SS-198	0	0	0	NA	Shivam Sharma
+150	2024-12-27	8601	174	1607	reports/ssb_SupplyOutward-2024-25-1607.pdf	51614 BY	0	0	0	NA	Shivam Sharma
+149	2024-12-27	8601	356	1606	reports/ssb_SupplyOutward-2024-25-1606.pdf	51612 AG	0	0	0	NA	Shivam Sharma
+148	2024-12-27	3101-0000G	1215	1605	reports/ssb_SupplyOutward-2024-25-1605.pdf	m196575	4000	4000	0	PP-20241122-HI-03	Shivam Sharma
+147	2024-12-27	10169794	3792	1604	reports/ssb_SupplyOutward-2024-25-1604.pdf	49983	7000	7000	0	PP-20241118-DA-01	Shivam Sharma
+146	2024-12-27	10169794	1669	1603	reports/ssb_SupplyOutward-2024-25-1603.pdf	49984	7500	7632	-132	PP-20241214-DA-05	Shivam Sharma
+145	2024-12-27	1324.332.018	1152	1602	reports/ssb_SupplyOutward-2024-25-1602.pdf	K194690 SS-205	0	0	0	NA	Shivam Sharma
+144	2024-12-27	728.06.033.01	288	1601	reports/ssb_SupplyOutward-2024-25-1601.pdf	A29548 SS-198	0	0	0	NA	Shivam Sharma
+143	2024-12-27	10442099	1763	1600	reports/ssb_SupplyOutward-2024-25-1600.pdf	49983 SS-210	0	0	0	na	Shivam Sharma
+142	2024-12-27	10442099	287	1599	reports/ssb_SupplyOutward-2024-25-1599_diq9Ilh.pdf	49983 ss-210	0	0	0	na	Shivam Sharma
+141	2024-12-27	10442099	1763	1599	reports/ssb_SupplyOutward-2024-25-1599.pdf	49984 ss-207	0	0	0	na	Shivam Sharma
+140	2024-12-27	N07500001PHT/FTB	1332	1598	reports/ssb_SupplyOutward-2024-25-1598.pdf	kc174997 ss-203	0	0	0	na	Shivam Sharma
+139	2024-12-26	18454	0	1597	reports/ssb_SupplyOutward-2024-25-1597.pdf	50030 ga	669	0	0	na	Shivam Sharma
+138	2024-12-26	25366	446	1596	reports/ssb_SupplyOutward-2024-25-1596.pdf	a54060 gz	0	0	0	na	Shivam Sharma
+137	2024-12-26	F1624311	438	1595	reports/ssb_SupplyOutward-2024-25-1595.pdf	NA	0	0	0	na	Shivam Sharma
+136	2024-12-26	25366	669	1394	reports/ssb_SupplyOutward-2024-25-1594.pdf	50030 GB	0	0	0	na	Shivam Sharma
+135	2024-12-26	FG300111	1320	1393	reports/ssb_SupplyOutward-2024-25-1593.pdf	c83885 gv	0	0	0	na	Shivam Sharma
+134	2024-12-26	F1624311	146	1592	reports/ssb_SupplyOutward-2024-25-1592.pdf	A30268 gd	0	0	0	na	Shivam Sharma
+133	2024-12-26	12512	980	1591	reports/ssb_SupplyOutward-2024-25-1591.pdf	50416	5000	5166	-166	PP-20241214-DA-06	Shivam Sharma
+132	2024-12-24	8218 (FORGED ONLY)	539	JW/2024-25/0223	reports/ssb_SupplyOutward-JW-2024-25-0223.pdf	50652 HP	0	0	0	NA	Shivam Sharma
+131	2024-12-23	4475.480.062 PINION	70	SSB/2024-25/0030	reports/ssb_SupplyOutward-SSB-2024-25-0030.pdf	NA	0	0	0	NA	Shivam Sharma
+130	2024-12-23	60450248	69	2024-25/1590	reports/ssb_SupplyOutward-2024-25-1590.pdf	k24-1315	370	378	-8	PP-20241202-TI-01	Shivam Sharma
+129	2024-12-21	6026-0000G	387	JW/2024-25/0217	reports/ssb_SupplyOutward-JW-2024-25-0217.pdf	m193226	600	623	-23	PP-20241207-HI-02	Shivam Sharma
+128	2024-12-21	3101-0000G	108	2024-25/1589	reports/ssb_SupplyOutward-2024-25-1589.pdf	m196575	4000	4000	0	PP-20241122-HI-03	Shivam Sharma
+127	2024-12-20	3125122	762	2024-25/1587	reports/ssb_SupplyOutward-2024-25-1587.pdf	C83306 GT	0	0	0	NA	Shivam Sharma
+126	2024-12-20	3182432	654	2024-25/1586	reports/ssb_SupplyOutward-2024-25-1586.pdf	C83885 GS	0	0	0	NA	Shivam Sharma
+125	2024-12-20	0FG3001112	660	2024-25/1585	reports/ssb_SupplyOutward-2024-25-1585.pdf	C83885 GV	0	0	0	NA	Shivam Sharma
+124	2024-12-20	0A40026209342	156	2024-25/1583	reports/ssb_SupplyOutward-2024-25-1583.pdf	50090 GA	0	0	0	NA	Shivam Sharma
+123	2024-12-20	0F16225112	1392	2024-25/1582	reports/ssb_SupplyOutward-2024-25-1582.pdf	50030 GM	0	0	0	NA	Shivam Sharma
+122	2024-12-20	0F16243112	584	2024-25/1581	reports/ssb_SupplyOutward-2024-25-1581.pdf	A30268 GD	0	0	0	NA	Shivam Sharma
+121	2024-12-20	A4002621034	12	2024-25/1588	reports/ssb_SupplyOutward-2024-25-1588.pdf	50090	400	370	30	PP-20241211-DA-01	Shivam Sharma
+120	2024-12-20	A4002624367	199	2024-25/1584	reports/ssb_SupplyOutward-2024-25-1584.pdf	51963	250	260	-10	PP-20241211-DA-02	Shivam Sharma
+119	2024-12-19	FY801511	500	2024-25/1579	reports/ssb_SupplyOutward-2024-25-1579.pdf	50416	500	549	-49	PP-20241214-DA-01	Shivam Sharma
+118	2024-12-19	10169794	1659	2024-25/1578	reports/ssb_SupplyOutward-2024-25-1578.pdf	49983	7000	7000	0	PP-20241118-DA-01	Shivam Sharma
+117	2024-12-19	3101-0000G	1026	2024-25/1575	reports/ssb_SupplyOutward-2024-25-1575.pdf	m196575	4000	4000	0	PP-20241122-HI-03	Shivam Sharma
+116	2024-12-19	8603	620	2024-25/1576	reports/ssb_SupplyOutward-2024-25-1576.pdf	51614	1500	1334	166	PP-20241212-HI-03	Shivam Sharma
+115	2024-12-19	6026-0000G	174	JW/2024-25/0216	reports/ssb_SupplyOutward-JW-2024-25-0216.pdf	m193226	600	623	-23	PP-20241207-HI-02	Shivam Sharma
+114	2024-12-18	8603	500	2024-25/1573	reports/ssb_SupplyOutward-2024-25-1573.pdf	51614	1500	716	784	PP-20241212-HI-03	Shivam Sharma
+113	2024-12-18	8913	100	2024-25/1570	reports/ssb_SupplyOutward-2024-25-1570.pdf	a31482	253	615	-362	PP-20241010-HI-01	Shivam Sharma
+112	2024-12-16	8913	100	2024-25/1562	reports/ssb_SupplyOutward-2024-25-1562.pdf	a31482	253	615	-362	PP-20241010-HI-01	Shivam Sharma
+111	2024-12-17	4475_480_162	315	SSB/2024-25/0029	reports/ssb_SupplyOutward-SSB-2024-25-0029_6tODY9Z.pdf	k195976	1000	1020	-20	PP-20241119-ZF-02	Shivam Sharma
+110	2024-12-17	4475_480_053_DES001	1680	SSB/2024-25/0029	reports/ssb_SupplyOutward-SSB-2024-25-0029.pdf	k195976	5000	5167	-167	PP-20241119-ZF-01	Shivam Sharma
+109	2024-12-16	334Y5444	1200	2024-25/1561	reports/ssb_SupplyOutward-2024-25-1561_AMGuZHa.pdf	51964	4000	3178	822	PP-20241125-DA-01	Shivam Sharma
+108	2024-12-16	334Y5444	400	2024-25/1561	reports/ssb_SupplyOutward-2024-25-1561_HAfw87a.pdf	51964	4000	3178	822	PP-20241125-DA-01	Shivam Sharma
+107	2024-12-16	334Y5493	550	2024-25/1561	reports/ssb_SupplyOutward-2024-25-1561.pdf	50169	2500	4973	-2473	PP-20241002-DA-02	Shivam Sharma
+106	2024-12-17	10142862	1020	2024-25/1567	reports/ssb_SupplyOutward-2024-25-1567_ijwZrBW.pdf	49984	2000	2174	-174	PP-20241203-DA-01	Shivam Sharma
+105	2024-12-17	8913	100	2024-25/1568	reports/ssb_SupplyOutward-2024-25-1568.pdf	a31482	253	615	-362	PP-20241010-HI-01	Shivam Sharma
+104	2024-12-17	10458073	211	2024-25/1567	reports/ssb_SupplyOutward-2024-25-1567.pdf	50448	500	468	32	PP-20241206-DA-04	Shivam Sharma
+103	2024-12-07	F1624311	109	1513	reports/ssb_SupplyOutward-2024-25-1513.pdf	A30268 GD	0	0	0	NA	Shivam Sharma
+102	2024-12-07	56300	562	1512	reports/ssb_SupplyOutward-2024-25-1512.pdf	J832843 GC	0	0	0	NA	Shivam Sharma
+101	2024-12-07	16803	1952	1511	reports/ssb_SupplyOutward-2024-25-1511.pdf	C83885 GL	0	0	0	NA	Shivam Sharma
+100	2024-12-07	F1665711	936	1510	reports/ssb_SupplyOutward-2024-25-1510.pdf	48206 GC	0	0	0	NA	Shivam Sharma
+99	2024-12-07	53976	346	1509	reports/ssb_SupplyOutward-2024-25-1509.pdf	1509	0	0	0	NA	Shivam Sharma
+98	2024-12-07	25453IND	588	1508	reports/ssb_SupplyOutward-2024-25-1508.pdf	C83885 GF	0	0	0	NA	Shivam Sharma
+97	2024-12-07	13356	1125	1507	reports/ssb_SupplyOutward-2024-25-1507.pdf	49362 GZ	0	0	0	NA	Shivam Sharma
+96	2024-12-07	25366	408	1506	reports/ssb_SupplyOutward-2024-25-1506.pdf	48206 GA	0	0	0	NA	Shivam Sharma
+95	2024-12-07	25366	669	1505	reports/ssb_SupplyOutward-2024-25-1505.pdf	A54060 GZ	0	0	0	NA	Shivam Sharma
+94	2024-12-07	1304.304.698	1300	1504	reports/ssb_SupplyOutward-2024-25-1504.pdf	50030 GC	0	0	0	NA	Shivam Sharma
+93	2024-12-07	5129513IND	1297	1503	reports/ssb_SupplyOutward-2024-25-1503.pdf	48206 GV	0	0	0	NA	Shivam Sharma
+92	2024-12-07	330483	648	1502	reports/ssb_SupplyOutward-2024-25-1502.pdf	0944 GD	0	0	0	NA	Shivam Sharma
+91	2024-12-07	330483	432	1501	reports/ssb_SupplyOutward-2024-25-1501.pdf	0944 GD	0	0	0	NA	Shivam Sharma
+90	2024-12-07	1867 424 M2	160	1500	reports/ssb_SupplyOutward-2024-25-1500.pdf	K186407 SS198	0	0	0	NA	Shivam Sharma
+89	2024-12-06	1500071/TB	200	1499	reports/ssb_SupplyOutward-2024-25-1499.pdf	K474997 (SS-203)	0	0	0	NA	Shivam Sharma
+88	2024-12-06	590492	128	1498	reports/ssb_SupplyOutward-2024-25-1498_HkBj6Lr.pdf	A25273 GB	0	0	0	NA	Shivam Sharma
+87	2024-12-06	47136593IND	360	1498	reports/ssb_SupplyOutward-2024-25-1498_irKWP8E.pdf	51986 GD	0	0	0	NA	Shivam Sharma
+86	2024-12-06	562188	300	1498	reports/ssb_SupplyOutward-2024-25-1498_5dUdPG3.pdf	51964 GC	0	0	0	NA	Shivam Sharma
+85	2024-12-06	87748929	240	1498	reports/ssb_SupplyOutward-2024-25-1498_YAbtfek.pdf	50523 GB	0	0	0	NA	Shivam Sharma
+84	2024-12-06	84328458	520	1498	reports/ssb_SupplyOutward-2024-25-1498.pdf	48441 GM	0	0	0	NA	Shivam Sharma
+83	2024-12-06	4105	504	1497	reports/ssb_SupplyOutward-2024-25-1497.pdf	M180246	0	0	0	NA	Shivam Sharma
+82	2024-12-06	8912-0000G	540	1496	reports/ssb_SupplyOutward-2024-25-1496.pdf	A31872 CM	0	0	0	NA	Shivam Sharma
+81	2024-12-06	1867 424 M2	100	1495	reports/ssb_SupplyOutward-2024-25-1495.pdf	K186407 SS198	0	0	0	NA	Shivam Sharma
+80	2024-12-06	1867 424 M2	100	1494	reports/ssb_SupplyOutward-2024-25-1494.pdf	K186407 SS198	0	0	0	NA	Shivam Sharma
+79	2024-12-06	1500071/TB	300	1493	reports/ssb_SupplyOutward-2024-25-1493.pdf	K474997 (SS-203)	0	0	0	NA	Shivam Sharma
+78	2024-12-05	4475.480.053	1680	0028	reports/ssb_SupplyOutward-SSB-2024-25-0028.pdf	NA	0	0	0	NA	Shivam Sharma
+77	2024-12-05	47136593IND	720	1492	reports/ssb_SupplyOutward-2024-25-1492_C2ZOqKI.pdf	48719 GC	0	0	0	NA	Shivam Sharma
+76	2024-12-05	98418381	625	1492	reports/ssb_SupplyOutward-2024-25-1492_GhWQ0TT.pdf	A29329 GB	0	0	0	NA	Shivam Sharma
+75	2024-12-05	334Y5493	175	1492	reports/ssb_SupplyOutward-2024-25-1492.pdf	50168 GM	0	0	0	na	Shivam Sharma
+74	2024-12-05	34420	1602	1491	reports/ssb_SupplyOutward-2024-25-1491.pdf	C83885 GP	0	0	0	NA	Shivam Sharma
+73	2024-12-05	5802460944	151	1490	reports/ssb_SupplyOutward-2024-25-1490.pdf	A194295 (GC)	0	0	0	NA	Shivam Sharma
+72	2024-12-05	5802460944	29	1489	reports/ssb_SupplyOutward-2024-25-1489.pdf	A194295 (GC)	0	0	0	NA	Shivam Sharma
+71	2024-12-05	5802460939	371	1488	reports/ssb_SupplyOutward-2024-25-1488.pdf	A194245 (GC)	0	0	0	NA	Shivam Sharma
+70	2024-12-05	5802460939	29	1487	reports/ssb_SupplyOutward-2024-25-1487.pdf	A194245 (GC)	0	0	0	NA	Shivam Sharma
+69	2024-12-05	HM212011 CP	5004	1486	reports/ssb_SupplyOutward-2024-25-1486.pdf	49537	0	0	0	NA	Shivam Sharma
+68	2024-12-04	1867 424 M2	100	1485	reports/ssb_SupplyOutward-2024-25-1485.pdf	K186407 SS198	0	0	0	NA	Shivam Sharma
+67	2024-12-04	8912-0000G	300	1484	reports/ssb_SupplyOutward-2024-25-1484.pdf	A31872 CM	0	0	0	NA	Shivam Sharma
+66	2024-12-04	4105-0000G	1008	1383	reports/ssb_SupplyOutward-2024-25-1483.pdf	M190597	0	0	0	NA	Shivam Sharma
+65	2024-12-04	3101-0000G	1026	1482	reports/ssb_SupplyOutward-2024-25-1482.pdf	M190597	0	0	0	NA	Shivam Sharma
+64	2024-12-04	1500071/TB	300	1481	reports/ssb_SupplyOutward-2024-25-1481.pdf	K474997 (SS-203)	0	0	0	NA	Shivam Sharma
+63	2024-12-04	18243	654	1480	reports/ssb_SupplyOutward-2024-25-1480_y6cAxNI.pdf	C83885 GS	0	0	0	NA	Shivam Sharma
+62	2024-12-04	19259	426	1480	reports/ssb_SupplyOutward-2024-25-1480_fSRF7Bk.pdf	83306 GV	0	0	0	NA	Shivam Sharma
+61	2024-12-04	22806	669	1480	reports/ssb_SupplyOutward-2024-25-1480.pdf	83306 GV	0	0	0	NA	Shivam Sharma
+60	2024-12-04	10142862	358	1479	reports/ssb_SupplyOutward-2024-25-1479_sPKyz8u.pdf	A28991 GL	0	0	0	NA	Shivam Sharma
+59	2024-12-04	05802460931	992	1479	reports/ssb_SupplyOutward-2024-25-1479_hOIpOSF.pdf	K194295 GR	0	0	0	NA	Shivam Sharma
+58	2024-12-04	05802460931	320	1479	reports/ssb_SupplyOutward-2024-25-1479.pdf	A30492 GP	0	0	0	NA	Shivam Sharma
+57	2024-12-04	728.06.033.01	576	1478	reports/ssb_SupplyOutward-2024-25-1478.pdf	A29548 SS-198	0	0	0	NA	Shivam Sharma
+56	2024-12-04	728.06.033.01	576	1477	reports/ssb_SupplyOutward-2024-25-1477.pdf	KC175652 SS-209	0	0	0	NA	Shivam Sharma
+55	2024-12-04	N07500001PHT/FTB	747	1476	reports/ssb_SupplyOutward-2024-25-1476.pdf	KC174998 SS-215	0	0	0	NA	Shivam Sharma
+54	2024-12-04	N07500001PHT/FTB	111	1475	reports/ssb_SupplyOutward-2024-25-1475.pdf	K185951 SS-188	0	0	0	NA	Shivam Sharma
+53	2024-12-04	60550202	72	1472	reports/ssb_SupplyOutward-2024-25-1472.pdf	K241010 S-K4-03	0	0	0	NA	Shivam Sharma
+52	2024-12-04	8610	250	1471	reports/ssb_SupplyOutward-2024-25-1471.pdf	51261 BY	0	0	0	NA	Shivam Sharma
+51	2024-12-04	5621-0000G	151	1470	reports/ssb_SupplyOutward-2024-25-1470.pdf	51012 ZC	0	0	0	na	Shivam Sharma
+50	2024-12-04	8912-0000G	300	1469	reports/ssb_SupplyOutward-2024-25-1469.pdf	A31872	0	0	0	na	Shivam Sharma
+49	2024-11-29	F1624311	146	1425	reports/ssb_SupplyOutward-2024-25-1425_8hV4ETA.pdf	A30268 GV	0	0	0	NA	Shivam Sharma
+48	2024-11-29	NA	141	1424	reports/ssb_SupplyOutward-2024-25-1424_CpAmHP3.pdf	A26357 GS	0	0	0	NA	Shivam Sharma
+47	2024-11-29	NA	435	1423	reports/ssb_SupplyOutward-2024-25-1423_UCfOXj4.pdf	A30268 GV	0	0	0	NA	Shivam Sharma
+46	2024-11-26	A4002620523-B	109	1422	reports/ssb_SupplyOutward-2024-25-1422_cWztBFq.pdf	a29315	280	288	-8	PP-20241112-DA-01	Shivam Sharma
+45	2024-11-26	5171194IND	56	56	reports/ssb_SupplyOutward-2024-25-1420_wuH6opt.pdf	50508	800	806	-6	PP-20241114-DA-03	Shivam Sharma
+44	2024-11-26	47132781IND	280	1420	reports/ssb_SupplyOutward-2024-25-1420_EkZwT5U.pdf	50508	5000	5000	0	PP-20241108-DA-06	Shivam Sharma
+43	2024-11-26	5171194IND	368	1420	reports/ssb_SupplyOutward-2024-25-1420.pdf	50508	800	806	-6	PP-20241114-DA-03	Shivam Sharma
+42	2024-11-26	47132781IND	480	1419	reports/ssb_SupplyOutward-2024-25-1419_W7Ym2uX.pdf	50508	5000	5000	0	PP-20241108-DA-06	Shivam Sharma
+41	2024-11-26	47455131IND	708	1419	reports/ssb_SupplyOutward-2024-25-1419_9kt8TqB.pdf	M833852 GZ	0	0	0	na	Shivam Sharma
+40	2024-11-26	47136593IND	679	1419	reports/ssb_SupplyOutward-2024-25-1419.pdf	48719	2100	2272	-172	PP-20241027-DA-01	Shivam Sharma
+39	2024-11-23	8913	101	1428	reports/ssb_SupplyOutward-2024-25-1428.pdf	a32083	320	415	-95	PP-20241114-HI-01	 
+38	2024-11-23	8912-0000G	420	1427	reports/ssb_SupplyOutward-2024-25-1427.pdf	a31872	1500	1568	-68	PP-20241019-HI-02	 
+37	2024-11-23	F1624311	146	1425	reports/ssb_SupplyOutward-2024-25-1425.pdf	A30268 GD	0	0	0	NA	 
+36	2024-11-23	FG300111	141	1424	reports/ssb_SupplyOutward-2024-25-1424.pdf	46357 GS	0	0	0	NA	 
+35	2024-11-23	53976	435	1423	reports/ssb_SupplyOutward-2024-25-1423.pdf	A30268 GA	0	0	0	NA	 
+34	2024-11-23	A4002620523-B	109	1422	reports/ssb_SupplyOutward-2024-25-1422.pdf	a29315	280	288	-8	PP-20241112-DA-01	 
+33	2024-11-23	8913	200	1415	reports/ssb_SupplyOutward-2024-25-1415.pdf	a32083	320	415	-95	PP-20241114-HI-01	 
+32	2024-11-23	4475.480.079	150	0024	reports/ssb_SupplyOutward-SSB-2024-25-0024.pdf	k195974	200	250	-50	PP-20241029-ZF-01	 
+31	2024-11-23	1304.333.011	146	1414	reports/ssb_SupplyOutward-2024-25-1414.pdf	48411 GL	0	0	0	NA	 
+30	2024-11-23	12512	655	1413	reports/ssb_SupplyOutward-2024-25-1413.pdf	A54060 GS	0	0	0	NA	 
+29	2024-11-23	F1622511	696	1412	reports/ssb_SupplyOutward-2024-25-1412.pdf	50030 GM	0	0	0	NA	 
+28	2024-11-23	F1624311	584	1400	reports/ssb_SupplyOutward-2024-25-1400.pdf	A300268 GD	0	0	0	NA	 
+27	2024-11-23	A4002621034	100	1399	reports/ssb_SupplyOutward-2024-25-1399.pdf	50090 GA	0	0	0	NA	 
+26	2024-11-23	A4002620523-A	239	1398	reports/ssb_SupplyOutward-2024-25-1398.pdf	50090 GA	0	0	0	NA	 
+25	2024-11-23	A4002620934	250	1397	reports/ssb_SupplyOutward-2024-25-1397.pdf	50090 GA	0	0	0	NA	 
+24	2024-11-23	A4002620523-B	100	1396	reports/ssb_SupplyOutward-2024-25-1396.pdf	50090 GA	0	0	0	NA	 
+23	2024-11-23	A4002624367	228	1395	reports/ssb_SupplyOutward-2024-25-1395.pdf	48915	0	0	0	NA	 
+22	2024-11-18	8912-0000G	720	1391		a31872	1500	1568	-68	PP-20241019-HI-02	Shivam Sharma
+21	2024-11-19	10169794	3792	1394	reports/ssb_SupplyOutward-2024-25-1394.pdf	49984	4000	6	3994	PP-20241009-DA-03	Shivam Sharma
+20	2024-11-19	10155821	1909	1393	reports/ssb_SupplyOutward-2024-25-1393.pdf	50169	2100	1970	130	PP-20241026-DA-02	Shivam Sharma
+18	2024-11-18	4105-0000G	1008	1392	reports/ssb_SupplyOutward-2024-25-1392.pdf	c83885	1700	2649	-949	PP-20241018-HI-03	Shivam Sharma

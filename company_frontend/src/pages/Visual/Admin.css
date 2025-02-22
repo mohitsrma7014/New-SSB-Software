@@ -1,0 +1,85 @@
+/* Ensure the page takes full height and is scrollable */
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+  }
+  
+  .admin-container {
+    left: 20px;
+    display: flex;
+    height: 100vh; /* Full height  */
+    overflow: auto; /* Make sure the page is scrollable */
+  }
+  
+  .content {
+    flex-grow: 1; /* Take up remaining space */
+    overflow-y: auto; /* Allow vertical scrolling */
+    height: 100%; /* Ensure content area fills available space */
+    padding-right: 20px; /* For right margin */
+  }
+  
+  .department-heading {
+    text-align: right;
+    margin-top: 100px;
+    font-size: 32px;
+    font-weight: bold;
+  }
+  
+  .kpi-boxes {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 30px;
+  }
+  
+ /* Container for the KPI box */
+.kpi-box {
+  margin-left: 10px;
+  display: flex;
+  flex-direction: column; /* Stack elements vertically */
+  align-items: flex-start; /* Align elements to the left */
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  background-color: rgba(255, 255, 255, 0.8); /* Slightly transparent */
+}
+
+/* Title of the KPI */
+.kpi-box-title {
+  font-weight: bold;
+  font-size: 16px;
+  margin-bottom: 10px;
+  text-align: center; /* Center the title */
+  width: 100%; /* Ensure title takes up full width */
+}
+
+/* Value of the KPI */
+.kpi-box-value {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 5px; /* Space between value and change */
+  display: flex;
+  justify-content: flex-start;
+  width: 100%; /* Make sure it takes up the full width */
+}
+
+/* Change (up/down) indicator */
+.kpi-change {
+  font-size: 12px; /* Smaller font size */
+  opacity: 0.7; /* Make it slightly transparent */
+  margin-left: auto; /* Align to the right side */
+}
+
+/* Upward change */
+.kpi-change.up {
+  color: green;
+}
+
+/* Downward change */
+.kpi-change.down {
+  color: red;
+}
+

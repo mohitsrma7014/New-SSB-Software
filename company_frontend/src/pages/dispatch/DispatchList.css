@@ -1,0 +1,47 @@
+/* DispatchList.css */
+.dispatch-list-container {
+    margin-top: 100px; /* Offset content by 100px */
+}
+.top{
+    z-index: 1000;
+}
+
+.search-container {
+    position: sticky;
+    top: 100px; /* Sticky after 100px scroll */
+    background-color: white;
+    padding: 10px;
+    border-bottom: 2px solid #ccc;
+    z-index: 10; /* Make sure it's above other content but below navbar */
+}
+
+.search-box {
+    width: 100%;
+    padding: 8px;
+    font-size: 16px;
+}
+
+.dispatch-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.dispatch-table th,
+.dispatch-table td {
+    padding: 8px;
+    text-align: left;
+}
+
+.dispatch-table th {
+    background-color: #f4f4f4;
+    position: sticky;
+    top: 100px; /* Sticky after 100px scroll */
+    z-index: 9; /* Ensure header is below the search box */
+}
+
+.dispatch-table tbody tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+
+

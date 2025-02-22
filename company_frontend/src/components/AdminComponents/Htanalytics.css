@@ -1,0 +1,255 @@
+/* App container */
+.app {
+    width: 100%;
+    min-height: 100vh; /* Take full viewport height */
+    margin-top: 100px; /* Space for the top of your page */
+    overflow-y: auto; /* Enables vertical scrolling when content exceeds viewport height */
+    box-sizing: border-box;
+}
+
+/* Filters */
+.filters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    padding: 1rem;
+    background-color: #f9fafb;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.filters > div {
+    display: flex;
+    flex-direction: column;
+}
+
+.filters label {
+    font-size: 14px;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 0.5rem;
+}
+
+.filters input,
+.filters select {
+    padding: 0.5rem;
+    font-size: 14px;
+    color: #555;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.filters input:focus,
+.filters select:focus {
+    border-color: #66bb6a;
+    box-shadow: 0 0 5px rgba(102, 187, 106, 0.5);
+}
+
+.filters select {
+    cursor: pointer;
+}
+
+.filters input::placeholder {
+    color: #aaa;
+    font-style: italic;
+}
+
+.filters input:hover,
+.filters select:hover {
+    border-color: #42a5f5;
+}
+
+.filters .datepicker {
+    font-size: 14px;
+}
+
+.filters button {
+    padding: 0.7rem 1.5rem;
+    font-size: 14px;
+    color: #fff;
+    background-color: #66bb6a;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    margin-top: 1rem;
+}
+
+.filters button:hover {
+    background-color: #42a5f5;
+}
+
+.filters button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+/* KPI row section */
+.kpi-row {
+    display: flex;
+    justify-content: space-between;
+    margin: 20px 0;
+    flex-wrap: wrap; /* Allow KPIs to wrap into multiple rows */
+    gap: 10px;
+    margin-left: 10px;
+}
+
+/* KPI styling */
+.kpi {
+    padding: 10px;
+    background-color: #f4f4f4;
+    border-radius: 5px;
+    flex: 1;
+    text-align: center;
+    margin-right: 10px;
+    min-width: 120px; /* Ensure they don't become too small */
+}
+
+/* Container */
+.container {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    width: 100%;
+    padding: 10px;
+    box-sizing: border-box;
+}
+
+/* Chart containers */
+.chart-container, .chart-container1 {
+    background-color: #ffffff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    box-sizing: border-box;
+}
+.suggestions {
+    position: absolute;
+    width: 100%;
+    max-height: 200px; /* Adjust as needed */
+    overflow-y: auto;
+    border: 1px solid #ccc;
+    background-color: #fff;
+    z-index: 1000;
+  }
+  
+  .suggestions li {
+    padding: 8px;
+    cursor: pointer;
+  }
+  
+  .suggestions li:hover {
+    background-color: #f0f0f0;
+  }
+  
+
+.chart-container {
+    width: 70%;
+}
+.chart-container1 {
+    width: 28%;
+}
+.chart {
+    height: 500px;
+    width: 100%;
+}
+
+.chart1 {
+    height: 250px;
+}
+
+/* Table container */
+.table-container {
+    overflow-y: auto;
+    max-height: 400px; /* Limits height of table container */
+    margin-top: 20px;
+}
+
+/* Table styling */
+table {
+    width: 100%; /* Allow table to take up the full width */
+    border-collapse: collapse;
+    font-size: 12px; /* Make table text slightly bigger */
+}
+
+table th, table td {
+    border: 1px solid #ddd;
+    text-align: left;
+    padding: 8px; /* Add padding to make table more readable */
+}
+
+table th {
+    position: sticky;
+    top: 0;
+    background-color: #f4f4f4;
+    z-index: 1;
+}
+
+table tbody tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+table tbody tr:hover {
+    background-color: #f1f1f1;
+}
+
+/* Dropdown and Filter button styles */
+.filter-dropdowns {
+    display: flex;
+    gap: 15px;
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.filter-dropdowns > div {
+    flex: 1;
+    min-width: 150px;
+}
+
+.filter-dropdowns select,
+.filter-dropdowns input {
+    width: 100%;
+    padding: 8px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+.filter-dropdowns button {
+    padding: 10px 20px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.filter-dropdowns button:hover {
+    background-color: #45a049;
+}
+
+/* Responsive layout */
+@media (max-width: 768px) {
+    .kpi-row {
+        flex-direction: column;
+        gap: 10px;
+    }
+    .filters {
+        grid-template-columns: 1fr;
+    }
+    .chart-container {
+        width: 100%;
+    }
+    
+    .filter-dropdowns {
+        flex-direction: column;
+        gap: 10px;
+    }
+    .container {
+        flex-direction: column;
+        gap: 10px;
+    }
+}
