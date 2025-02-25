@@ -42,4 +42,5 @@ urlpatterns = [
     path('MasterListViewSet/<int:pk>/', MasterListViewSet.as_view({'put': 'update', 'delete': 'destroy'}), name='MasterListViewSet-Set'),
     path('calculate-dispatch-tonnage/', views.calculate_dispatch_tonnage, name='calculate_dispatch_tonnage'),
     path('BatchTrackingView/', BatchTrackingView.as_view(), name='BatchTrackingView'),
+    path('api/forging-quality-report/', ForgingQualityReportAPIView.as_view(), name='forging-quality-report'),
 ]

@@ -155,6 +155,7 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',
     "http://localhost:5173",
     "http://192.168.1.199:5173",
+    "http://192.168.1.199:5175",
     "http://192.168.1.199:8000",
 ]
 # CORS settings
@@ -172,6 +173,7 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",  # React dev server
     "http://127.0.0.1:8000",  # Django dev server
     "http://192.168.1.199:5173",
+    "http://192.168.1.199:5175",
     "http://192.168.1.199:8001",
     "http://192.168.1.199:8000",
 ]

@@ -71,6 +71,8 @@ import BatchTrackingTable4 from './pages/Shot_blast/BatchTrackingTable';
 
 import Forgingrejection from './pages/rejection/Forging';
 
+import ForgingrDashboard from './pages/rejection/Dashboard';
+
 import Cnc_home from './pages/Cnc/Cnc_home';
 import Cnc_production1 from './pages/Cnc/cnc_production';
 import Cnc_list from './pages/Cnc/Cnc_list';
@@ -265,6 +267,7 @@ const App = () => {
       <Route path="/Ratingmain/" element={<Ratingmain />} />
       <Route path="/InventoryStatus/" element={<InventoryStatus />} />
       <Route path="/Rm_schedule/" element={<Rm_schedule />} />
+      <Route path="/ForgingrDashboard/" element={<ForgingrDashboard />} />
     </Routes>
   );
 };

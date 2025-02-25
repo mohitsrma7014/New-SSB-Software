@@ -89,11 +89,13 @@ export const Sidebar = () => {
             <li className="nav-item">
               <a href="#">Logistics</a>
               <ul className="submenu">
-              <li><a href="/ScheduleForm">Add Customer Schedule</a></li>
+              
               <li><a href="/InventoryStatus">Inventory</a></li>
+              <li><a href="/ScheduleForm">Add Customer Schedule</a></li>
+              <li><a href="/Schedule">Forging Planning</a></li>
                 {/* <li><a href="/BlockmtForm">Production Planning</a></li> */}
                 <li><a href="/CncPlanningForm">Machining Planning</a></li>
-                <li><a href="/Schedule">Schedules</a></li>
+                
                 <li><a href="/Ratingmain">Schedules Analytics</a></li>
                 <li><a href="/DispatchList">Dispatch </a></li>
               </ul>
@@ -118,9 +120,8 @@ export const Sidebar = () => {
               <ul className="submenu">
               <li><a href="/CustomerComplaint">Customer Complaint</a></li>
                 <li><a href="/Forgingrejection">Forging</a></li>
-                <li><a href="/cnc">CNC</a></li>
-                <li><a href="/Fi_production">Final Inspection</a></li>
-                <li><a href="/visual_home">Visual & Packing</a></li>
+                <li><a href="/ForgingrDashboard">Rejection Report</a></li>
+              
               </ul>
             </li>
             <li className="nav-item">
