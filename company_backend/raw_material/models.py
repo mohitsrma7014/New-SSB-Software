@@ -197,6 +197,7 @@ class Masterlist(models.Model):
     material_grade= models.CharField(max_length=100)
     slug_weight = models.DecimalField(max_digits=10, decimal_places=2)
     bar_dia = models.CharField(max_length=100)
+    process = models.CharField(max_length=100)
     ring_weight = models.DecimalField(max_digits=10, decimal_places=2)
     cost = models.DecimalField(max_digits=10, decimal_places=2)
     component_cycle_time = models.IntegerField()

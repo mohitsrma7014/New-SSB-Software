@@ -8,6 +8,8 @@ export default function InventoryStatus() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false); // Loading state
   const API_BASE_URL = "http://192.168.1.199:8001/forging/api/inventory_status";
+  const [customerFilter, setCustomerFilter] = useState(""); // State for customer filter
+
 
   const fetchData = async () => {
     setLoading(true); // Start loading
@@ -27,6 +29,17 @@ export default function InventoryStatus() {
       fetchData(); // Fetch all data when search is empty
     }
   }, [search]);
+  // Extract unique customers for dropdown
+  // Extract unique customers (case insensitive)
+const uniqueCustomers = [
+  ...new Set(data.map((item) => item.customer.toLowerCase())),
+];
+
+// Filter data based on selected customer (case insensitive)
+const filteredData = customerFilter
+  ? data.filter((item) => item.customer.toLowerCase() === customerFilter.toLowerCase())
+  : data;
+
 
   // Handle Excel Download with Custom Headers
   const handleDownload = () => {
@@ -75,6 +88,27 @@ export default function InventoryStatus() {
       <h1 className="text-2xl font-bold mb-4">Inventory Status</h1>
 
       <div className="mb-4 flex items-center">
+        <label className="mr-2 ml-auto font-semibold">Select Customer:</label>
+        <select
+  className="p-2 border rounded"
+  value={customerFilter}
+  onChange={(e) => setCustomerFilter(e.target.value)}
+>
+  <option value="">All Customers</option>
+  {uniqueCustomers.map((lowercaseCustomer) => {
+    // Find the original case version from the data
+    const originalCaseCustomer = data.find(
+      (item) => item.customer.toLowerCase() === lowercaseCustomer
+    )?.customer;
+
+    return (
+      <option key={lowercaseCustomer} value={originalCaseCustomer}>
+        {originalCaseCustomer}
+      </option>
+    );
+  })}
+</select>
+
         <input
           type="text"
           placeholder="Search Component..."
@@ -107,18 +141,26 @@ export default function InventoryStatus() {
           <thead className="sticky top-0 bg-gray-200">
             <tr>
               <th className="p-2 text-center border">Component</th>
-              <th className="p-2 text-center border">Available Between Forging & Heat Treatment</th>
-              <th className="p-2 text-center border">Available Between Heat Treatment & Machining</th>
-              <th className="p-2 text-center border">Available Between Machining & Visual</th>
+              <th className="p-2 text-center border">Customer</th>
+              <th className="p-2 text-center border">Cost</th>
+              <th className="p-2 text-center border">Available After Forging</th>
+              <th className="p-2 text-center border">Available After Heat Treatment </th>
+              <th className="p-2 text-center border">Available After Pre mc </th>
+
+              <th className="p-2 text-center border">Available After Machining </th>
               <th className="p-2 text-center border">Packed</th>
+  
             </tr>
           </thead>
           <tbody>
-            {data.map((item, index) => (
+          {filteredData.map((item, index) => (
               <tr key={index} className="text-center border-t">
                 <td className="p-2 text-center border">{item.component}</td>
+                <td className="p-2 text-center border">{item.customer}</td>
+                <td className="p-2 text-center border">{item.cost}</td>
                 <td className="p-2 text-center border">{item.available_after_forging} Pcs.</td>
                 <td className="p-2 text-center border">{item.available_after_heat_treatment} Pcs.</td>
+                <td className="p-2 text-center border">{item.available_after_pre_mc} Pcs.</td>
                 <td className="p-2 text-center border">{item.available_after_machining} Pcs.</td>
                 <td className="p-2 text-center border">{item.available_after_visual} Pcs.</td>
               </tr>

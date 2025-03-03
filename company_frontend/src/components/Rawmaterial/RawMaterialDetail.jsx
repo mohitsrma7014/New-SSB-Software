@@ -124,7 +124,7 @@ const RawMaterialDetail = ({ materialId, onBack }) => {
                       name="date"
                       value={material.date || ""}
                       onChange={handleChange}
-                      disabled
+                      
                       className="input"
                     />
                   </label>
@@ -172,7 +172,7 @@ const RawMaterialDetail = ({ materialId, onBack }) => {
                       name="standerd"
                       value={material.standerd || ""}
                       onChange={handleChange}
-                      disabled
+                      
                       className="input"
                     />
                   </label>
@@ -269,7 +269,7 @@ const RawMaterialDetail = ({ materialId, onBack }) => {
                       name="invoice_no"
                       value={material.invoice_no || ""}
                       onChange={handleChange}
-                      disabled
+                      
                       className="input"
                     />
                   </label>

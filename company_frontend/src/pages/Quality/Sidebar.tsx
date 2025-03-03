@@ -118,6 +118,7 @@ export const Sidebar = () => {
               <a href="#">Other Tools</a>
               <ul className="submenu">
               <li><a href="/Pdfextrection">PDF Extraction</a></li>
+              <li><a href="/Dashboardqa">Rejection Report</a></li>
                 
               </ul>
             </li>

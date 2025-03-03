@@ -85,6 +85,8 @@ import LineMaster from './pages/Cnc/LineMaster';
 
 import CustomerComplaint from './pages/Costumer_complaints/CustomerComplaint';
 import CustomerComplaint1 from './pages/Quality/CustomerComplaint';
+import Dashboardqa from './pages/Quality/Dashboardqa';
+import FinancialTrends from './pages/rejection/FinancialTrends';
 
 
 import Fi_home from './pages/Fi/Fi_home';
@@ -268,6 +270,8 @@ const App = () => {
       <Route path="/InventoryStatus/" element={<InventoryStatus />} />
       <Route path="/Rm_schedule/" element={<Rm_schedule />} />
       <Route path="/ForgingrDashboard/" element={<ForgingrDashboard />} />
+      <Route path="/Dashboardqa/" element={<Dashboardqa />} />
+      <Route path="/FinancialTrends/" element={<FinancialTrends />} />
     </Routes>
   );
 };

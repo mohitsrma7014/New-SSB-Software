@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { Sidebar } from '../../components/AdminComponents/Sidebar';
+import { Sidebar } from './Sidebar';
 import * as XLSX from 'xlsx';
 
 import {
@@ -95,7 +95,7 @@ const Dashboard = () => {
   
     // Group rejection reasons into categories (only for Machining table)
     const groupedReasons =
-    type === "machining" || type === "machining1"|| type === "machining2"|| type === "machining3"
+    type === "machining" || type === "machining1"
       ? {
           cnc: ["cnc_height", "cnc_od", "cnc_bore", "cnc_groove", "cnc_dent", "cnc_rust"],
           forging: ["forging_height", "forging_od", "forging_bore", "forging_crack", "forging_dent"],
@@ -105,7 +105,7 @@ const Dashboard = () => {
   
   // Extract all rejection reasons safely
   const allRejectionReasons =
-    (type === "machining" || type === "machining1"|| type === "machining3"|| type === "machining2") && groupedReasons
+    (type === "machining" || type === "machining1") && groupedReasons
       ? [...(groupedReasons.cnc || []), ...(groupedReasons.forging || []), ...(groupedReasons.pre_mc || [])]
       : Object.keys(tableData.components?.[Object.keys(tableData.components)?.[0]]?.rejection_reasons || {});
   
@@ -138,14 +138,14 @@ const Dashboard = () => {
     return (
       <>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h5>{title}</h5>
+        <h4>{title}</h4>
         <Button variant="contained" onClick={handleExport}>Export to Excel</Button>
       </div>
         <TableContainer sx={{ maxHeight: 400, overflowY: "auto" }}>
           <Table stickyHeader>
           <TableHead>
   {/* Conditional Header Logic */}
-  {(type === "machining" || type === "machining1"|| type === "machining2"|| type === "machining3")  ? (
+  {(type === "machining" || type === "machining1")  ? (
     // Two-row header for Machining table
     <>
       {/* First Row: Section Headers (CNC, Forging, Pre-MC) */}
@@ -434,7 +434,7 @@ const Dashboard = () => {
   </TableCell>
 
   {/* Rejection Reasons Data */}
-  {(type === "machining" || type === "machining1" || type === "machining2" || type === "machining3")  &&
+  {(type === "machining" || type === "machining1")  &&
     Object.entries(groupedReasons).map(([category, reasons]) => (
       <>
         {/* Rejection Reason Data */}
@@ -478,7 +478,7 @@ const Dashboard = () => {
     ))}
    {/* {(type === "machining" || type === "machining1")  */}
   {/* Flat Rejection Reasons (for Forging table) */}
-  {(type !== "machining" && type !== "machining1" && type !== "machining2"&& type !== "machining3") &&
+  {(type !== "machining" && type !== "machining1") &&
   allRejectionReasons.map((reason) => (
     <TableCell
       key={reason}
@@ -555,8 +555,6 @@ const Dashboard = () => {
       {renderTable("Forging Data", data?.forging, "forging")}
       {renderTable("Machining Data", data?.machining, "machining")}
       {renderTable("Broching Data", data?.machining1, "machining1")}
-      {renderTable("VMC Data", data?.machining2, "machining2")}
-      {renderTable("CF Data", data?.machining3, "machining3")}
     </div>
   );
 };

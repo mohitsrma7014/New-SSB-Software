@@ -635,45 +635,633 @@ from .models import Forging
 from cnc.models import machining
 from raw_material.models import dispatch
 from visual.models import Visual
+from pre_mc.models import pre_mc
+
+from django.db.models import Sum, F
+from django.db.models import Sum
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+# Example mapping of mother components and their sub-components
+component_hierarchy = {
+    "13981": {
+        "sub_components": [ "13981","18243"],
+        "is_mother": True  # Indicates this is a mother component
+    },
+    "13356": {
+        "sub_components": ["13356", "sub_component_2B"],
+        "is_mother": True
+    },
+    "normal_component_1": {
+        "sub_components": [],  # No sub-components
+        "is_mother": False  # Indicates this is a normal component
+    },
+    # Add more components as needed
+}
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from django.db.models import Sum
+from raw_material.models import Masterlist
+
+
+extra_production = {
+    "60450248": {
+        "forging": 0,
+        "heat_treatment": 378,
+        "pre_mc": 280,
+        "machining": 9,
+        "visual": 39,
+        "dispatch":0,
+    },
+    "60550202": {
+        "forging": 0,
+        "heat_treatment": 1150,
+        "pre_mc": 1576 ,
+        "machining": 1576,
+        "visual": 1576,
+        "dispatch":1256 ,
+    },
+    "69009710": {
+        "forging": 0,
+        "heat_treatment": 30,
+        "pre_mc": 30 ,
+        "machining": 30,
+        "visual": 30,
+        "dispatch":30 ,
+    },
+    "69000084": {
+        "forging": 0,
+        "heat_treatment": 115,
+        "pre_mc": 115 ,
+        "machining": 115,
+        "visual": 115,
+        "dispatch":115 ,
+    },
+
+    "N07500001PHT/FTB": {
+        "forging": 474,
+        "heat_treatment": 605,
+        "pre_mc": 2385 ,
+        "machining": 176,
+        "visual": 0,
+        "dispatch":3193 ,
+    },
+    "1500071/TB": {
+        "forging": 0,
+        "heat_treatment": 10496 ,
+        "pre_mc": 13476,
+        "machining": 16385 ,
+        "visual": 16385 ,
+        "dispatch":12328  ,
+    },
+    "F8A03611": {
+        "forging": 667,
+        "heat_treatment": 685 ,
+        "pre_mc": 0,
+        "machining": 585  ,
+        "visual": 740 ,
+        "dispatch":1500  ,
+    },
+    "10121738": {
+        "forging": 0,
+        "heat_treatment": 370 ,
+        "pre_mc": 370,
+        "machining": 15  ,
+        "visual": 370 ,
+        "dispatch":30  ,
+    },
+    "10169794": {
+        "forging": 0,
+        "heat_treatment": 37465 ,
+        "pre_mc": 64420 ,
+        "machining": 49565   ,
+        "visual": 48973  ,
+        "dispatch":68921 ,
+    },
+    "10442099": {
+        "forging": 8811 ,
+        "heat_treatment": 8811  ,
+        "pre_mc": 8811  ,
+        "machining": 1407    ,
+        "visual": 0  ,
+        "dispatch":4998  ,
+    },
+    "10155821": {
+        "forging": 0 ,
+        "heat_treatment": 12606 ,
+        "pre_mc": 13075 ,
+        "machining": 12704,
+        "visual": 10156   ,
+        "dispatch":19544 ,
+    },
+    "10127041": {
+        "forging": 0 ,
+        "heat_treatment": 14672  ,
+        "pre_mc": 12538  ,
+        "machining": 8429,
+        "visual": 7385    ,
+        "dispatch":13792  ,
+    },
+    "10154766": {
+        "forging": 0 ,
+        "heat_treatment": 4173  ,
+        "pre_mc": 4173   ,
+        "machining": 1506,
+        "visual": 1662     ,
+        "dispatch":4098   ,
+    },
+    "728.06.033.01": {
+        "forging": 0 ,
+        "heat_treatment": 13192  ,
+        "pre_mc": 18669 ,
+        "machining": 11358,
+        "visual": 12508 ,
+        "dispatch":16054,
+    },
+    "SU21094": {
+        "forging": 0 ,
+        "heat_treatment": 2381  ,
+        "pre_mc": 5245  ,
+        "machining": 2017 ,
+        "visual": 2285 ,
+        "dispatch":4585 ,
+    },
+    "1324.332.018": {
+        "forging": 0,
+        "heat_treatment": 3780  ,
+        "pre_mc": 3780   ,
+        "machining": 2985  ,
+        "visual": 2055  ,
+        "dispatch":1668  ,
+    },
+    "2715 2620 5408": {
+        "forging": 959 ,
+        "heat_treatment": 959   ,
+        "pre_mc": 959   ,
+        "machining": 405 ,
+        "visual": 0 ,
+        "dispatch":959  ,
+    },
+    "48103852/ftb": {
+        "forging": 0,
+        "heat_treatment": 4361   ,
+        "pre_mc": 5382   ,
+        "machining": 2951  ,
+        "visual": 2605  ,
+        "dispatch":5962 ,
+    },
+    "4TN1247FP5 CN": {
+        "forging": 0,
+        "heat_treatment": 8400   ,
+        "pre_mc": 8400   ,
+        "machining": 8400  ,
+        "visual": 8400  ,
+        "dispatch":8400  ,
+    },
+    "4TN1247FP5 CP": {
+        "forging": 0,
+        "heat_treatment": 8215  ,
+        "pre_mc": 8215,
+        "machining": 8215 ,
+        "visual": 8215 ,
+        "dispatch":8215 ,
+    },
+    "4TN1248FP5 CN": {
+        "forging": 0,
+        "heat_treatment": 10000   ,
+        "pre_mc": 10000   ,
+        "machining": 10000  ,
+        "visual": 10000  ,
+        "dispatch":10000  ,
+    },
+    "4TN1248FP5 CP": {
+        "forging": 0 ,
+        "heat_treatment": 8000   ,
+        "pre_mc": 8000   ,
+        "machining": 8000  ,
+        "visual": 8000  ,
+        "dispatch":8000  ,
+    },
+    "32218 CP": {
+        "forging": 953 ,
+        "heat_treatment": 953   ,
+        "pre_mc": 953   ,
+        "machining": 0 ,
+        "visual": 953  ,
+        "dispatch":953  ,
+    },
+    "572 CP": {
+        "forging": 1790 ,
+        "heat_treatment": 1790   ,
+        "pre_mc": 1790   ,
+        "machining": 0 ,
+        "visual": 1790  ,
+        "dispatch":1790  ,
+    },
+    "HM212049 CN": {
+        "forging": 0 ,
+        "heat_treatment": 40665    ,
+        "pre_mc": 41430   ,
+        "machining": 41795  ,
+        "visual": 41795  ,
+        "dispatch":21635  ,
+    },
+    "HM212011 CP": {
+        "forging": 0,
+        "heat_treatment": 49119   ,
+        "pre_mc": 48619   ,
+        "machining": 48619  ,
+        "visual": 48619 ,
+        "dispatch":23491  ,
+    },
+    "552 CP": {
+        "forging": 0 ,
+        "heat_treatment": 25745  ,
+        "pre_mc": 25445  ,
+        "machining": 25445  ,
+        "visual": 25445  ,
+        "dispatch":15149  ,
+    },
+    "555S CN": {
+        "forging": 0,
+        "heat_treatment": 24830   ,
+        "pre_mc": 24530  ,
+        "machining": 24530  ,
+        "visual": 24530  ,
+        "dispatch":13218  ,
+    },
+    "6420 CP": {
+        "forging": 0,
+        "heat_treatment": 27764  ,
+        "pre_mc": 24806  ,
+        "machining": 49951 ,
+        "visual": 49951 ,
+        "dispatch":43867  ,
+    },
+    "6461 CN": {
+        "forging": -30704  ,
+        "heat_treatment": 14310   ,
+        "pre_mc": 14310   ,
+        "machining": 14310  ,
+        "visual": 14310  ,
+        "dispatch":0 ,
+    },
+    "JM511946 CN": {
+        "forging": 300 ,
+        "heat_treatment": 300 ,
+        "pre_mc": 300   ,
+        "machining": 23 ,
+        "visual": 0 ,
+        "dispatch":0 ,
+    },
+    "JM511910 CP": {
+        "forging": 300,
+        "heat_treatment": 300  ,
+        "pre_mc": 300  ,
+        "machining": 0 ,
+        "visual": 5 ,
+        "dispatch":0 ,
+    },
+    "5621-0000G": {
+        "forging": 0,
+        "heat_treatment": 2804   ,
+        "pre_mc": 4577   ,
+        "machining": 3205  ,
+        "visual": 4530  ,
+        "dispatch":2571  ,
+    },
+    "5618-0000G": {
+        "forging": 280,
+        "heat_treatment": 280  ,
+        "pre_mc": 280  ,
+        "machining": 0 ,
+        "visual": 280 ,
+        "dispatch":280 ,
+    },
+    "5603-0000G": {
+        "forging": 0,
+        "heat_treatment": 1135   ,
+        "pre_mc": 1135   ,
+        "machining": 1135  ,
+        "visual": 1135  ,
+        "dispatch":1135  ,
+    },
+    "6026-0000G": {
+        "forging": 0,
+        "heat_treatment": 1316   ,
+        "pre_mc": 3224   ,
+        "machining": 1327 ,
+        "visual": 5454  ,
+        "dispatch":3431 ,
+    },
+    "5691": {
+        "forging": 88,
+        "heat_treatment": 0  ,
+        "pre_mc": 723   ,
+        "machining": 723  ,
+        "visual": 723  ,
+        "dispatch":723  ,
+    },
+    "8603": {
+        "forging": 0,
+        "heat_treatment": 3713   ,
+        "pre_mc": 9243   ,
+        "machining": 9243  ,
+        "visual": 9243  ,
+        "dispatch":6927  ,
+    },
+    "6028-0000G": {
+        "forging": 335 ,
+        "heat_treatment": 0  ,
+        "pre_mc": 1397   ,
+        "machining": 438  ,
+        "visual": 2790  ,
+        "dispatch":2590 ,
+    },
+    "8218": {
+        "forging": 0,
+        "heat_treatment": 8485  ,
+        "pre_mc": 8485  ,
+        "machining": 8485 ,
+        "visual": 8485 ,
+        "dispatch":8485 ,
+    },
+    "8610": {
+        "forging": 0,
+        "heat_treatment": 1714  ,
+        "pre_mc": 7870   ,
+        "machining": 7870  ,
+        "visual": 7870  ,
+        "dispatch":4762  ,
+    },
+    "8914": {
+        "forging": 310,
+        "heat_treatment": 310  ,
+        "pre_mc": 310  ,
+        "machining": 0 ,
+        "visual": 20 ,
+        "dispatch":310 ,
+    },
+    "4105-0000G": {
+        "forging": 0,
+        "heat_treatment": 0  ,
+        "pre_mc": 0  ,
+        "machining": 950  ,
+        "visual": 34180  ,
+        "dispatch":25778 ,
+    },
+    "3101-0000G": {
+        "forging": 0,
+        "heat_treatment": 12684  ,
+        "pre_mc": 12177    ,
+        "machining": 9769  ,
+        "visual": 27662  ,
+        "dispatch":12659 ,
+    },
+    "5305-0000G": {
+        "forging": 0,
+        "heat_treatment": 10899   ,
+        "pre_mc": 15307  ,
+        "machining": 9554  ,
+        "visual": 16664  ,
+        "dispatch":14705  ,
+    },
+    "5621-0000G": {
+        "forging": 0,
+        "heat_treatment": 2804   ,
+        "pre_mc": 4577   ,
+        "machining": 3205  ,
+        "visual": 4577  ,
+        "dispatch":2658 ,
+    },
+    "8618": {
+        "forging": 0,
+        "heat_treatment": 1252   ,
+        "pre_mc": 4520   ,
+        "machining": 4520  ,
+        "visual": 4520  ,
+        "dispatch":3397  ,
+    },
+    "8610": {
+        "forging": 0,
+        "heat_treatment": 1214   ,
+        "pre_mc": 7370   ,
+        "machining": 7370  ,
+        "visual": 7370 ,
+        "dispatch":4262  ,
+    },
+    "5684": {
+        "forging": 0,
+        "heat_treatment": 2274   ,
+        "pre_mc": 5105   ,
+        "machining": 5105  ,
+        "visual": 5105  ,
+        "dispatch":3257   ,
+    },
+    "8912-0000G": {
+        "forging": 0,
+        "heat_treatment": 10501   ,
+        "pre_mc": 13226   ,
+        "machining": 8276 ,
+        "visual": 7779  ,
+        "dispatch":12804 ,
+    },
+    "8913": {
+        "forging": 0,
+        "heat_treatment": 710   ,
+        "pre_mc": 1461   ,
+        "machining": 741 ,
+        "visual": 941  ,
+        "dispatch":1357 ,
+    },
+    "8601": {
+        "forging": 0,
+        "heat_treatment": 4932   ,
+        "pre_mc": 8090   ,
+        "machining": 8090  ,
+        "visual": 8090  ,
+        "dispatch":5885  ,
+    },
+    "8603": {
+        "forging": 0,
+        "heat_treatment": 3713   ,
+        "pre_mc": 9443    ,
+        "machining": 9443   ,
+        "visual": 9443   ,
+        "dispatch":7127   ,
+    },
+    "5686": {
+        "forging": 0,
+        "heat_treatment": 405   ,
+        "pre_mc": 645   ,
+        "machining": 895  ,
+        "visual": 895  ,
+        "dispatch":490  ,
+    },
+    "5683": {
+        "forging": 0,
+        "heat_treatment": 1258   ,
+        "pre_mc": 5335   ,
+        "machining": 5335  ,
+        "visual": 5335  ,
+        "dispatch":3624 ,
+    },
+    "8617": {
+        "forging": 0,
+        "heat_treatment": 3430   ,
+        "pre_mc": 5980   ,
+        "machining": 5980  ,
+        "visual": 5980  ,
+        "dispatch":4351  ,
+    },
+    "320-7051": {
+        "forging": 0,
+        "heat_treatment": 326   ,
+        "pre_mc": 76   ,
+        "machining": 194  ,
+        "visual": 326  ,
+        "dispatch":276 ,
+    },
+    "3752009348": {
+        "forging": 0,
+        "heat_treatment": 1  ,
+        "pre_mc": 37  ,
+        "machining": 27 ,
+        "visual": 32,
+        "dispatch":37  ,
+    },
+    "abc": {
+        "forging": 0,
+        "heat_treatment": 0  ,
+        "pre_mc": 0  ,
+        "machining": 0 ,
+        "visual": 0 ,
+        "dispatch":0 ,
+    },
+    "abc": {
+        "forging": 0,
+        "heat_treatment": 0  ,
+        "pre_mc": 0  ,
+        "machining": 0 ,
+        "visual": 0 ,
+        "dispatch":0 ,
+    },
+
+    "abc": {
+        "forging": 0,
+        "heat_treatment": 0  ,
+        "pre_mc": 0  ,
+        "machining": 0 ,
+        "visual": 0 ,
+        "dispatch":0 ,
+    },
+    # Add more components as needed
+}
 
 @api_view(['GET'])
 def inventory_status(request, component_name=None):
-    components = Forging.objects.values_list('component', flat=True).distinct()
-    data = []
-    
-    # Filter components based on similarity
+    # Fetch all distinct components from Forging, Machining, and Visual
+    forging_components = set(Forging.objects.values_list('component', flat=True).distinct())
+    machining_components = set(machining.objects.values_list('component', flat=True).distinct())
+    visual_components = set(Visual.objects.values_list('component', flat=True).distinct())
+
+    # Combine and get unique components
+    all_components = forging_components  | visual_components | machining_components
+
+    # Filter components based on similarity if component_name is provided
     if component_name:
-        components = [component for component in components if component_name.lower() in component.lower()]
-    
-    for component in components:
-        forging_production = Forging.objects.filter(component=component).aggregate(Sum('production'))['production__sum'] or 0
-        heat_treatment_production = HeatTreatment.objects.filter(component=component).aggregate(Sum('production'))['production__sum'] or 0
+        all_components = {component for component in all_components if component_name.lower() in component.lower()}
 
-        machining_production = (
-            machining.objects.filter(component=component, setup="II")
-            .aggregate(Sum("production"))["production__sum"]
-            or 0
-        )
+    # ✅ Fetch Masterlist Data
+    masterlist_data = {
+        m.component: {"customer": m.customer, "cost": m.cost}
+        for m in Masterlist.objects.all()
+    }
 
-        visual_production = Visual.objects.filter(component=component).aggregate(Sum('production'))['production__sum'] or 0
-        dispatched_pieces = dispatch.objects.filter(component=component).aggregate(Sum('pices'))['pices__sum'] or 0
-        
+    # Initialize data list
+    data = []
+
+    for component in all_components:
+        # Check if the component is a mother component
+        component_info = component_hierarchy.get(component, {"sub_components": [], "is_mother": False})
+        is_mother = component_info["is_mother"]
+        sub_components = component_info["sub_components"]
+
+        # Check if component is a sub-component of a mother component
+        parent_component = None
+        for mother, info in component_hierarchy.items():
+            if component in info.get("sub_components", []):
+                parent_component = mother
+                break
+
+        # ✅ **Step 1: Always Fetch Mother Component's Pre-MC Production**
+        if is_mother:
+            mother_pre_mc_production = pre_mc.objects.filter(component=component).aggregate(total=Sum('qty'))['total'] or 0
+        elif parent_component:
+            mother_pre_mc_production = pre_mc.objects.filter(component=parent_component).aggregate(total=Sum('qty'))['total'] or 0
+        else:
+            mother_pre_mc_production = pre_mc.objects.filter(component=component).aggregate(total=Sum('qty'))['total'] or 0
+
+        # ✅ **Step 2: Machining Should Include Mother + Sub-Components**
+        if is_mother:
+            machining_production = machining.objects.filter(component__in=[component] + sub_components, setup="II").aggregate(total=Sum('production'))['total'] or 0
+        else:
+            machining_production = machining.objects.filter(component__in=[component, parent_component] if parent_component else [component], setup="II").aggregate(total=Sum('production'))['total'] or 0
+
+        # ✅ **Step 3: Fetch Other Stage Productions**
+        forging_production = Forging.objects.filter(component=component).aggregate(total=Sum('production'))['total'] or 0
+        heat_treatment_production = HeatTreatment.objects.filter(component=component).aggregate(total=Sum('production'))['total'] or 0
+        visual_production = Visual.objects.filter(component=component).aggregate(total=Sum('production'))['total'] or 0
+
+        # ✅ **Step 4: Add Extra Production**
+        extra = extra_production.get(component, {})
+        forging_production += extra.get("forging", 0)
+        heat_treatment_production += extra.get("heat_treatment", 0)
+        mother_pre_mc_production += extra.get("pre_mc", 0)
+        machining_production += extra.get("machining", 0)
+        visual_production += extra.get("visual", 0)
+
+        dispatched_pieces = dispatch.objects.filter(component=component).aggregate(total=Sum('pices'))['total'] or 0
+
+        dispatched_pieces += extra.get("dispatch", 0)
+
+        # ✅ **Step 5: Inventory Calculation**
         available_after_forging = forging_production - heat_treatment_production
-        available_after_heat_treatment = heat_treatment_production - machining_production
+        available_after_heat_treatment = heat_treatment_production - mother_pre_mc_production
+        available_after_pre_mc = mother_pre_mc_production - machining_production
         available_after_machining = machining_production - visual_production
+
+        process_type = Masterlist.objects.filter(component=component).values_list('process', flat=True).first()
+
+        if process_type == "Forging":
+            available_after_visual = visual_production - dispatched_pieces # Use forging production as dispatched pieces
+        elif process_type == "Heat-Treatment":
+            available_after_visual = visual_production - dispatched_pieces  # Use heat treatment production as dispatched pieces
+        else:
+            available_after_visual = visual_production - dispatched_pieces
+
         available_after_visual = visual_production - dispatched_pieces
-        
+
+        # ✅ **Step 6: Fetch Customer & Cost from Masterlist**
+        master_data = masterlist_data.get(component, {"customer": None, "cost": None})
+
+        # ✅ **Step 7: Append Data**
         data.append({
             "component": component,
+            "is_mother": is_mother,
+            "sub_components": sub_components if is_mother else [],
             "forging_production": forging_production,
             "heat_treatment_production": heat_treatment_production,
+            "pre_mc_production": mother_pre_mc_production,
             "machining_production": machining_production,
             "visual_production": visual_production,
             "dispatched_pieces": dispatched_pieces,
             "available_after_forging": available_after_forging,
             "available_after_heat_treatment": available_after_heat_treatment,
+            "available_after_pre_mc": available_after_pre_mc,
             "available_after_machining": available_after_machining,
             "available_after_visual": available_after_visual,
+            "customer": master_data["customer"],  # ✅ Add Customer from Masterlist
+            "cost": master_data["cost"],  # ✅ Add Cost from Masterlist
         })
-    
+
     return Response(data)
