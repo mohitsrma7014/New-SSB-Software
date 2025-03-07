@@ -122,6 +122,12 @@ import Pdfextrection from './pages/Others/Pdfextrection';
 import Ratingmain from './pages/Rating/Ratingmain';
 import InventoryStatus from './pages/Inventory/InventoryStatus';
 
+import CreateOrder from "./pages/Materialorder/CreateOrder";
+import { Orders } from "./pages/Materialorder/Orders";
+
+import UpdateDelivery from "./pages/Materialorder/UpdateDelivery";
+
+
 const App = () => {
   const isAuthenticated = () => !!localStorage.getItem('accessToken'); // Check if access token exists
   const departmentComponents = {
@@ -272,6 +278,11 @@ const App = () => {
       <Route path="/ForgingrDashboard/" element={<ForgingrDashboard />} />
       <Route path="/Dashboardqa/" element={<Dashboardqa />} />
       <Route path="/FinancialTrends/" element={<FinancialTrends />} />
+
+      <Route path="/CreateOrder/" element={<CreateOrder />} />
+      <Route path="/Orders/" element={<Orders />} />
+      <Route path="/UpdateDelivery/" element={<UpdateDelivery />} />
+      
     </Routes>
   );
 };

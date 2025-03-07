@@ -3,7 +3,7 @@
 from django.urls import path
 from .views import ProductionReport,SuggestionView,MachiningViewSet,BulkAddCncAPIView,get_target_details7,get_part_detailscnc,CncplanningViewSet,CncCycleTimeView
 from . import views
-from .views import ComplaintListCreateView, ComplaintDetailView, ComplaintHistoryView
+from .views import ComplaintListCreateView, ComplaintDetailView, ComplaintHistoryView, MonthlyProductionAPIView,get_fy_trends
 
 urlpatterns = [
     path('api/production-report/', ProductionReport.as_view(), name='production-report'),
@@ -22,5 +22,8 @@ urlpatterns = [
     path('api/complaints/', ComplaintListCreateView.as_view(), name='complaint-list-create'),
     path('api/complaints/<int:pk>/', ComplaintDetailView.as_view(), name='complaint-detail'),
     path('api/complaints/<int:id>/history/', ComplaintHistoryView.as_view(), name='complaint-history'),
-]
+    path('api/monthly-production/', MonthlyProductionAPIView.as_view(), name='monthly-production'),
+    path('api/fy-trends/<str:year>/', get_fy_trends, name='fy_trends'),
+    path('api/fy-trends/', get_fy_trends, name='fy_trends_default'),
+    ]
 

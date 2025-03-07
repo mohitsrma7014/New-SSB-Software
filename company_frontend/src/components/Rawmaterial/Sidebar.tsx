@@ -99,6 +99,7 @@ export const Sidebar = () => {
             <li className="nav-item">
               <a href="#">In/Out</a>
               <ul className="submenu">
+              <li><a href="/Orders">RM Order Managment</a></li>
                 
                 <li><a href="/Rm_reciving">Raw Material Reciving</a></li>
 

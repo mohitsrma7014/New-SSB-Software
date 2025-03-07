@@ -24,7 +24,7 @@ const EntityList = ({ endpoint, title, reload }) => {
     return items.map((item) => ({
       id: item.id,
       name: item.name,
-      // Add other properties you want to display in the dictionary format
+      delivery_days: endpoint === "suppliers" ? item.delivery_days : null, // Only include delivery_days for suppliers
     }));
   };
 
@@ -49,7 +49,10 @@ const EntityList = ({ endpoint, title, reload }) => {
             >
               <div className="flex items-center space-x-2">
                 <FaCogs className="text-gray-600" />
-                <span className="text-gray-700">{item.name}</span>
+                <span className="text-gray-700">
+                  {item.name} 
+                  {endpoint === "suppliers" && item.delivery_days !== null ? ` - Deliver in ${item.delivery_days} Days` : ""}
+                </span>
               </div>
             </li>
           ))

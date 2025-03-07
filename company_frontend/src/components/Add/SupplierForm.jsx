@@ -3,12 +3,17 @@ import axios from "axios";
 
 const SupplierForm = ({ reloadData }) => {
     const [name, setName] = useState("");
+    const [delivery_days, setDeliveryDays] = useState("");
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            await axios.post("http://192.168.1.199:8001/raw_material/suppliers/", { name });
+            await axios.post("http://192.168.1.199:8001/raw_material/suppliers/", { 
+                name, 
+                delivery_days 
+            });
             setName("");
+            setDeliveryDays(""); // Reset delivery_days after submission
             reloadData(); // Reload data after adding
         } catch (error) {
             console.error(error);
@@ -25,6 +30,16 @@ const SupplierForm = ({ reloadData }) => {
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         placeholder="Supplier Name"
+                        required
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                </div>
+                <div>
+                    <input
+                        type="number"
+                        value={delivery_days}
+                        onChange={(e) => setDeliveryDays(e.target.value)}
+                        placeholder="Days Take For Delivery"
                         required
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />

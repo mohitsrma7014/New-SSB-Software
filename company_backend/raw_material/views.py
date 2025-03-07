@@ -2480,3 +2480,38 @@ class FinancialYearTrendsAPIView(APIView):
                 )
 
         return Response(trends)
+
+from rest_framework.decorators import action
+from .serializers import OrderSerializer
+from .models import Order
+from datetime import datetime
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework import viewsets
+from .models import Order
+from .serializers import OrderSerializer
+
+class OrderViewSet(viewsets.ModelViewSet):
+    queryset = Order.objects.all()
+    serializer_class = OrderSerializer
+
+    @action(detail=True, methods=['patch'])
+    def update_actual_delivery(self, request, pk=None):
+        order = self.get_object()
+        actual_date_str = request.data.get('actual_delivery_date')
+
+        if actual_date_str:
+            try:
+                # Convert string date to datetime.date
+                actual_date = datetime.strptime(actual_date_str, "%Y-%m-%d").date()
+
+                # Update fields
+                order.actual_delivery_date = actual_date
+                order.delay_days = (actual_date - order.delivery_date).days
+                order.save()
+
+                return Response({'status': 'updated', 'delay_days': order.delay_days})
+            except ValueError:
+                return Response({'error': 'Invalid date format. Use YYYY-MM-DD'}, status=400)
+
+        return Response({'error': 'Invalid date provided'}, status=400)

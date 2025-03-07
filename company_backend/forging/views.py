@@ -1159,23 +1159,39 @@ extra_production = {
 
 @api_view(['GET'])
 def inventory_status(request, component_name=None):
-    # Fetch all distinct components from Forging, Machining, and Visual
+    # Fetch all distinct components from Forging, Machining, and Visual in bulk
     forging_components = set(Forging.objects.values_list('component', flat=True).distinct())
     machining_components = set(machining.objects.values_list('component', flat=True).distinct())
     visual_components = set(Visual.objects.values_list('component', flat=True).distinct())
 
     # Combine and get unique components
-    all_components = forging_components  | visual_components | machining_components
+    all_components = forging_components | machining_components | visual_components
 
     # Filter components based on similarity if component_name is provided
     if component_name:
         all_components = {component for component in all_components if component_name.lower() in component.lower()}
 
-    # ✅ Fetch Masterlist Data
+    # Fetch Masterlist Data in bulk
     masterlist_data = {
         m.component: {"customer": m.customer, "cost": m.cost}
         for m in Masterlist.objects.all()
     }
+
+    # Fetch all pre_mc, machining, forging, heat_treatment, visual, and dispatch data in bulk
+    pre_mc_data = pre_mc.objects.values('component').annotate(total=Sum('qty'))
+    machining_data = machining.objects.filter(setup="II").values('component').annotate(total=Sum('production'))
+    forging_data = Forging.objects.values('component').annotate(total=Sum('production'))
+    heat_treatment_data = HeatTreatment.objects.values('component').annotate(total=Sum('production'))
+    visual_data = Visual.objects.values('component').annotate(total=Sum('production'))
+    dispatch_data = dispatch.objects.values('component').annotate(total=Sum('pices'))
+
+    # Convert bulk data into dictionaries for quick lookups
+    pre_mc_dict = {item['component']: item['total'] for item in pre_mc_data}
+    machining_dict = {item['component']: item['total'] for item in machining_data}
+    forging_dict = {item['component']: item['total'] for item in forging_data}
+    heat_treatment_dict = {item['component']: item['total'] for item in heat_treatment_data}
+    visual_dict = {item['component']: item['total'] for item in visual_data}
+    dispatch_dict = {item['component']: item['total'] for item in dispatch_data}
 
     # Initialize data list
     data = []
@@ -1193,26 +1209,26 @@ def inventory_status(request, component_name=None):
                 parent_component = mother
                 break
 
-        # ✅ **Step 1: Always Fetch Mother Component's Pre-MC Production**
+        # Fetch Mother Component's Pre-MC Production
         if is_mother:
-            mother_pre_mc_production = pre_mc.objects.filter(component=component).aggregate(total=Sum('qty'))['total'] or 0
+            mother_pre_mc_production = pre_mc_dict.get(component, 0)
         elif parent_component:
-            mother_pre_mc_production = pre_mc.objects.filter(component=parent_component).aggregate(total=Sum('qty'))['total'] or 0
+            mother_pre_mc_production = pre_mc_dict.get(parent_component, 0)
         else:
-            mother_pre_mc_production = pre_mc.objects.filter(component=component).aggregate(total=Sum('qty'))['total'] or 0
+            mother_pre_mc_production = pre_mc_dict.get(component, 0)
 
-        # ✅ **Step 2: Machining Should Include Mother + Sub-Components**
+        # Machining Should Include Mother + Sub-Components
         if is_mother:
-            machining_production = machining.objects.filter(component__in=[component] + sub_components, setup="II").aggregate(total=Sum('production'))['total'] or 0
+            machining_production = sum(machining_dict.get(c, 0) for c in [component] + sub_components)
         else:
-            machining_production = machining.objects.filter(component__in=[component, parent_component] if parent_component else [component], setup="II").aggregate(total=Sum('production'))['total'] or 0
+            machining_production = sum(machining_dict.get(c, 0) for c in ([component, parent_component] if parent_component else [component]))
 
-        # ✅ **Step 3: Fetch Other Stage Productions**
-        forging_production = Forging.objects.filter(component=component).aggregate(total=Sum('production'))['total'] or 0
-        heat_treatment_production = HeatTreatment.objects.filter(component=component).aggregate(total=Sum('production'))['total'] or 0
-        visual_production = Visual.objects.filter(component=component).aggregate(total=Sum('production'))['total'] or 0
+        # Fetch Other Stage Productions
+        forging_production = forging_dict.get(component, 0)
+        heat_treatment_production = heat_treatment_dict.get(component, 0)
+        visual_production = visual_dict.get(component, 0)
 
-        # ✅ **Step 4: Add Extra Production**
+        # Add Extra Production
         extra = extra_production.get(component, {})
         forging_production += extra.get("forging", 0)
         heat_treatment_production += extra.get("heat_treatment", 0)
@@ -1220,31 +1236,19 @@ def inventory_status(request, component_name=None):
         machining_production += extra.get("machining", 0)
         visual_production += extra.get("visual", 0)
 
-        dispatched_pieces = dispatch.objects.filter(component=component).aggregate(total=Sum('pices'))['total'] or 0
+        dispatched_pieces = dispatch_dict.get(component, 0) + extra.get("dispatch", 0)
 
-        dispatched_pieces += extra.get("dispatch", 0)
-
-        # ✅ **Step 5: Inventory Calculation**
+        # Inventory Calculation
         available_after_forging = forging_production - heat_treatment_production
         available_after_heat_treatment = heat_treatment_production - mother_pre_mc_production
         available_after_pre_mc = mother_pre_mc_production - machining_production
         available_after_machining = machining_production - visual_production
-
-        process_type = Masterlist.objects.filter(component=component).values_list('process', flat=True).first()
-
-        if process_type == "Forging":
-            available_after_visual = visual_production - dispatched_pieces # Use forging production as dispatched pieces
-        elif process_type == "Heat-Treatment":
-            available_after_visual = visual_production - dispatched_pieces  # Use heat treatment production as dispatched pieces
-        else:
-            available_after_visual = visual_production - dispatched_pieces
-
         available_after_visual = visual_production - dispatched_pieces
 
-        # ✅ **Step 6: Fetch Customer & Cost from Masterlist**
+        # Fetch Customer & Cost from Masterlist
         master_data = masterlist_data.get(component, {"customer": None, "cost": None})
 
-        # ✅ **Step 7: Append Data**
+        # Append Data
         data.append({
             "component": component,
             "is_mother": is_mother,
@@ -1260,8 +1264,8 @@ def inventory_status(request, component_name=None):
             "available_after_pre_mc": available_after_pre_mc,
             "available_after_machining": available_after_machining,
             "available_after_visual": available_after_visual,
-            "customer": master_data["customer"],  # ✅ Add Customer from Masterlist
-            "cost": master_data["cost"],  # ✅ Add Cost from Masterlist
+            "customer": master_data["customer"],
+            "cost": master_data["cost"],
         })
 
     return Response(data)

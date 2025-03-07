@@ -3,6 +3,10 @@ from django.urls import path
 from . import views
 from .views import *
 
+order_list = OrderViewSet.as_view({'get': 'list', 'post': 'create'})
+order_detail = OrderViewSet.as_view({'get': 'retrieve'})
+update_actual_delivery = OrderViewSet.as_view({'patch': 'update_actual_delivery'})
+
 urlpatterns = [
     path('raw_material/create/', views.create_raw_material, name='raw-material-create-api'),
     path('api/raw-materials/', RawMaterialListCreateView.as_view(), name='raw-material-list-create'),
@@ -44,4 +48,7 @@ urlpatterns = [
     path('BatchTrackingView/', BatchTrackingView.as_view(), name='BatchTrackingView'),
     path('api/forging-quality-report/', ForgingQualityReportAPIView.as_view(), name='forging-quality-report'),
     path('api/FinancialYearTrendsAPIView/', FinancialYearTrendsAPIView.as_view(), name='FinancialYearTrendsAPIView'),
+    path('api/orders/', order_list, name='orders-list'),
+    path('api/orders/<int:pk>/', order_detail, name='order-detail'),
+    path('api/orders/<int:pk>/update-delivery/', update_actual_delivery, name='update-actual-delivery'),
 ]

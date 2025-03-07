@@ -90,24 +90,28 @@ const RawMaterialForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    
-
+  
     if (!formData.verified_by) {
       alert('Verified By field is required and cannot be empty.');
       return;
     }
-
+  
     try {
       const response = await axios.post('http://192.168.1.199:8001/raw_material/api/raw-materials/', formData);
       console.log('Success:', response.data);
       alert('Raw material added successfully!');
-      setFormData(initialFormData); // Reset form fields
+  
+      // Reset form but keep "verified_by" intact
+      setFormData((prevData) => ({
+        ...initialFormData,
+        verified_by: prevData.verified_by, // Keep verified_by
+      }));
     } catch (error) {
       console.error('Error:', error);
       alert('Failed to add raw material.');
     }
   };
+  
 
   return (
     <div className="page-container">

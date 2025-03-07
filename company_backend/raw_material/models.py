@@ -142,6 +142,7 @@ class BatchTracking(models.Model):
 
 class Supplier(models.Model):
     name = models.CharField(max_length=100, unique=True)
+    delivery_days = models.IntegerField()  # No. of days required for delivery
 
     def __str__(self):
         return self.name
@@ -242,3 +243,23 @@ class dispatch(models.Model):
 
     def __str__(self):
         return f"{self.component} - {self.invoiceno}"
+    
+
+from datetime import timedelta
+
+class Order(models.Model):
+    supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE)
+    rm_grade = models.CharField(max_length=100)
+    rm_standard = models.CharField(max_length=100)
+    bar_dia = models.FloatField()
+    qty = models.IntegerField()
+    po_date = models.DateField()
+    delivery_date = models.DateField(blank=True, null=True)
+    actual_delivery_date = models.DateField(blank=True, null=True)
+    verified_by = models.CharField(max_length=100, blank=True, null=True)
+    delay_days = models.IntegerField(blank=True, null=True)
+
+    def save(self, *args, **kwargs):
+        if not self.delivery_date:
+            self.delivery_date = self.po_date + timedelta(days=self.supplier.delivery_days)
+        super().save(*args, **kwargs)

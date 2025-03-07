@@ -121,7 +121,7 @@ export const Sidebar = () => {
               <li><a href="/CustomerComplaint">Customer Complaint</a></li>
                 <li><a href="/Forgingrejection">Forging</a></li>
                 <li><a href="/ForgingrDashboard">Rejection Report</a></li>
-              
+                <li><a href="/FinancialTrends">Yearly Trend</a></li>
               </ul>
             </li>
             <li className="nav-item">

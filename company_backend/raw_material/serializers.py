@@ -1,6 +1,6 @@
 # serializers.py
 from rest_framework import serializers
-from .models import RawMaterial,Schedule
+from .models import RawMaterial,Schedule,Order
 
 class RawMaterialSerializer(serializers.ModelSerializer):
     class Meta:
@@ -99,3 +99,12 @@ class MasterListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Masterlist
         fields = '__all__'
+
+
+# Serializer
+class OrderSerializer(serializers.ModelSerializer):
+    supplier_name = serializers.CharField(source="supplier.name", read_only=True)
+    class Meta:
+        model = Order
+        fields = '__all__'
+        read_only_fields = ('delivery_date', 'delay_days')
