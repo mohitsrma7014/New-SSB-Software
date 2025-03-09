@@ -19,10 +19,7 @@ const Dashboard = () => {
   });
   
   // New state variables for suggestions
-  const [componentSuggestions, setComponentSuggestions] = useState([]);
-  const [customerSuggestions, setCustomerSuggestions] = useState([]);
-  const [lineSuggestions, setLineSuggestions] = useState([]);
-  const [foremanSuggestions, setForemanSuggestions] = useState([]);
+
   const [suggestions, setSuggestions] = useState({
     component: [],
     customer: [],

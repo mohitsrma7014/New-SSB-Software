@@ -13,6 +13,7 @@ const CreateOrder = () => {
     bar_dia: "",
     qty: "",
     po_date: "",
+    po_number: "",
     verified_by: "",
   });
   const navigate = useNavigate();
@@ -101,6 +102,7 @@ const CreateOrder = () => {
           bar_dia: parseFloat(form.bar_dia),
           qty: parseInt(form.qty, 10),
           po_date: form.po_date,
+          po_number: form.po_number,
           verified_by: form.verified_by || null, // Ensure this is included
         }),
       });
@@ -118,6 +120,7 @@ const CreateOrder = () => {
         bar_dia: "",
         qty: "",
         po_date: "",
+        po_number: "",
         verified_by: form.verified_by, // Keep the verified_by field unchanged
       });
     } catch (err) {
@@ -180,15 +183,17 @@ const CreateOrder = () => {
           <input className="border p-2 rounded" name="bar_dia" type="number" step="0.01" placeholder="Bar Diameter" value={form.bar_dia} onChange={handleChange} required />
           <input className="border p-2 rounded" name="qty" type="number" placeholder="Quantity" value={form.qty} onChange={handleChange} required />
           <input className="border p-2 rounded" name="po_date" type="date" value={form.po_date} onChange={handleChange} required />
+          <input className="border p-2 rounded" name="po_number" placeholder="Po Number " type="text" value={form.po_number} onChange={handleChange} required />
 
           {/* Verified By (Auto-filled & Readonly) */}
           <input
-            className="border p-2 rounded bg-gray-100 col-span-2"
+            className="border p-2 rounded bg-gray-100 "
             name="verified_by"
             placeholder="Verified By"
             value={form.verified_by}
             readOnly
           />
+
 
           <button className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600 col-span-2" type="submit" disabled={loading}>
             {loading ? "Submitting..." : "Submit"}

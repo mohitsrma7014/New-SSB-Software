@@ -427,7 +427,6 @@ def balance_after_hold_for_autofill(request=None):
 
     # Convert the filtered DataFrame to a list of dictionaries
     filtered_df_dict = result_df.to_dict(orient='records')
-    print(filtered_df_dict)
     
     
     return filtered_df_dict
@@ -1700,653 +1699,278 @@ from rest_framework import status
 from datetime import datetime
 from django.db.models import Case, When, F, Value, IntegerField
 
-
+from django.db.models import Sum, Case, When, Value, IntegerField, F
+from datetime import datetime, timedelta
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
 class ForgingQualityReportAPIView(APIView):
     def get(self, request):
+        def parse_date(date_str):
+            try:
+                return datetime.strptime(date_str, "%Y-%m-%d").date()
+            except ValueError:
+                return None
+
+        def calculate_rejection_percent(rejection, production):
+            return round(rejection / production * 100, 2) if production else 0
+
+
+        def aggregate_data(qs, fields, component_field='component'):
+            return qs.values(component_field).annotate(
+                total_production=Sum("production"),
+                total_target=Sum("target"),
+                total_production_day=Sum(Case(When(shift="day", then=F("production")), default=Value(0), output_field=IntegerField())),
+                total_target_day=Sum(Case(When(shift="day", then=F("target")), default=Value(0), output_field=IntegerField())),
+                total_production_night=Sum(Case(When(shift="night", then=F("production")), default=Value(0), output_field=IntegerField())),
+                total_target_night=Sum(Case(When(shift="night", then=F("target")), default=Value(0), output_field=IntegerField())),
+                **{f'total_{field}': Sum(field) for field in fields}
+            )
+
+        def process_section_data(aggregated_data, masterlist_data, rejection_fields, section_name, qs=None, unique_fields=None):
+            section_data = {}
+            total_production = 0
+            total_target = 0
+            total_production_day = 0
+            total_production_night = 0
+            total_target_day = 0
+            total_target_night = 0
+            total_rejection = 0
+            total_rejection_cost = 0
+
+            for item in aggregated_data:
+                component = item['component']
+                production = item.get('total_production', 0) or 0
+                target = item.get('total_target', 0) or 0
+                production_day = item.get('total_production_day', 0) or 0
+                production_night = item.get('total_production_night', 0) or 0
+                target_day = item.get('total_target_day', 0) or 0
+                target_night = item.get('total_target_night', 0) or 0
+                cost_per_piece = masterlist_data.get(component, {}).get("cost", 0)
+
+                total_production += production
+                total_target += target
+                total_production_day += production_day
+                total_production_night += production_night
+                total_target_day += target_day
+                total_target_night += target_night
+
+                rejection_reasons = {field: item.get(f'total_{field}', 0) or 0 for field in rejection_fields}
+                total_component_rejection = sum(rejection_reasons.values())
+                total_rejection += total_component_rejection
+
+                rejection_cost = total_component_rejection * cost_per_piece
+                total_rejection_cost += rejection_cost
+
+                rejection_percent = calculate_rejection_percent(total_component_rejection, production)
+
+                section_data[component] = {
+                    "production": production,  # Total production (day + night)
+                    "target": target,  # Total target (day + night)
+                    "production_day": production_day,
+                    "production_night": production_night,
+                    "target_day": target_day,
+                    "target_night": target_night,
+                    f"{section_name}_rejection": total_component_rejection,
+                    "rejection_percent": round(rejection_percent, 2),
+                    "rejection_cost": rejection_cost,
+                    "customer": masterlist_data.get(component, {}).get("customer", "N/A"),
+                    "cost_per_piece": cost_per_piece,
+                    "rejection_reasons": rejection_reasons,
+                }
+
+                # Add unique fields if provided
+                if qs and unique_fields:
+                    for field in unique_fields:
+                        unique_values = list(qs.filter(component=component).values_list(field, flat=True).distinct())
+                        section_data[component][f"unique_{field}s"] = unique_values
+
+            return section_data, total_production, total_target, total_production_day, total_production_night, total_target_day, total_target_night, total_rejection, total_rejection_cost
+
         # Get filter parameters
         start_date = request.GET.get("start_date")  # YYYY-MM-DD
         end_date = request.GET.get("end_date")  # YYYY-MM-DD
 
         # Default to yesterday if no date provided
-        if start_date and not end_date:  
-            try:
-                start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
-                end_date = start_date  # If only start_date is provided, use it for both
-            except ValueError:
-                return Response({"error": "Invalid date format for start_date"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        elif not start_date and not end_date:
-            # Default to yesterday if no dates are provided
-            today = now().date()
-            start_date = today - timedelta(days=1)
-            end_date = today - timedelta(days=1)
-        
-        elif start_date and end_date:
-            try:
-                # Parse the provided dates
-                start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
-                end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
-            except ValueError:
-                return Response({"error": "Invalid date format"}, status=status.HTTP_400_BAD_REQUEST)
+        today = now().date()
+        start_date = parse_date(start_date) or today - timedelta(days=1)
+        end_date = parse_date(end_date) or start_date
+
+        if not start_date or not end_date:
+            return Response({"error": "Invalid date format"}, status=status.HTTP_400_BAD_REQUEST)
 
         # Fetch all relevant data in a single query for each model, applying date filters
         forging_qs = Forging.objects.filter(date__range=[start_date, end_date])
         machining_qs = machining.objects.filter(date__range=[start_date, end_date])
         fi_qs = Fi.objects.filter(date__range=[start_date, end_date])
         visual_qs = Visual.objects.filter(date__range=[start_date, end_date])
+
         # Fetch masterlist data and store in a dictionary for fast lookup
         masterlist_data = {m.component: {"customer": m.customer, "cost": m.cost} for m in Masterlist.objects.all()}
 
         # FORGING SECTION
-        forging_data = {}
-        total_forging_production = 0
-        total_forging_rejection = 0
-        total_forging_rejection_cost = 0
+        forging_fields = ['up_setting', 'half_piercing', 'full_piercing', 'ring_rolling', 'sizing', 'overheat', 'bar_crack_pcs']
+        forging_aggregated = aggregate_data(forging_qs, forging_fields)
+        forging_data, total_forging_production, total_forging_target, total_forging_production_day, total_forging_production_night, total_forging_target_day, total_forging_target_night, total_forging_rejection, total_forging_rejection_cost = process_section_data(
+            forging_aggregated, masterlist_data, forging_fields, "forging", qs=forging_qs, unique_fields=["forman", "line"])
 
-        # Aggregate forging data in a single query
-        forging_aggregated = forging_qs.values('component').annotate(
-            total_production=Sum('production'),
-            total_target=Sum('target'),
-            total_up_setting=Sum('up_setting'),
-            total_half_piercing=Sum('half_piercing'),
-            total_full_piercing=Sum('full_piercing'),
-            total_ring_rolling=Sum('ring_rolling'),
-            total_sizing=Sum('sizing'),
-            total_overheat=Sum('overheat'),
-            total_bar_crack_pcs=Sum('bar_crack_pcs')
-        )
+        # FI SECTION
+        fi_fields = ['cnc_height', 'cnc_od', 'cnc_bore', 'cnc_groove', 'cnc_dent', 'forging_height', 'forging_od', 'forging_bore', 'forging_crack', 'forging_dent', 'pre_mc_bore', 'pre_mc_od', 'pre_mc_height', 'rust']
+        fi_aggregated = aggregate_data(fi_qs, fi_fields)
+        fi_data, total_fi_production, total_fi_target, total_fi_production_day, total_fi_production_night, total_fi_target_day, total_fi_target_night, total_fi_rejection, total_fi_rejection_cost = process_section_data(
+            fi_aggregated, masterlist_data, fi_fields, "fi")
 
-        for item in forging_aggregated:
-            component = item['component']
-            production = item['total_production'] or 0
-            target = item['total_target'] or 0
-            cost_per_piece = masterlist_data.get(component, {}).get("cost", 0)
-
-            total_forging_production += production
-
-            rejection_reasons = {
-                "up_setting": item['total_up_setting'] or 0,
-                "half_piercing": item['total_half_piercing'] or 0,
-                "full_piercing": item['total_full_piercing'] or 0,
-                "ring_rolling": item['total_ring_rolling'] or 0,
-                "sizing": item['total_sizing'] or 0,
-                "overheat": item['total_overheat'] or 0,
-                "bar_crack_pcs": item['total_bar_crack_pcs'] or 0
-            }
-
-            total_component_rejection = sum(rejection_reasons.values())
-            total_forging_rejection += total_component_rejection
-
-            # Calculate rejection cost
-            rejection_cost = total_component_rejection * cost_per_piece
-            total_forging_rejection_cost += rejection_cost
-
-            # Calculate rejection percentage
-            component_rejection_percent = (
-                (total_component_rejection / (total_component_rejection + production)) * 100
-                if production > 0 else 0
-            )
-
-            forging_data[component] = {
-                "production": production,
-                "target": target,
-                "forging_rejection": total_component_rejection,
-                "rejection_percent": round(component_rejection_percent, 2),
-                "rejection_cost": rejection_cost,
-                "customer": masterlist_data.get(component, {}).get("customer", "N/A"),
-                "cost_per_piece": cost_per_piece,
-                "rejection_reasons": rejection_reasons,
-                "unique_lines": list(forging_qs.filter(component=component).values_list("line", flat=True).distinct()),
-                "unique_forman": list(forging_qs.filter(component=component).values_list("forman", flat=True).distinct())
-            }
-
-        # Sort forging data by production in decreasing order
-        forging_data = dict(sorted(forging_data.items(), key=lambda x: x[1]["production"], reverse=True))
-
-        
-        # Fi SECTION
-        fi_data = {}
-        total_fi_production = 0
-        total_fi_rejection = 0
-        total_fi_rejection_cost = 0
-
-        # Aggregate machining data in a single query
-        fi_aggregated = fi_qs.values('component').annotate(
-            total_production=Sum('production'),
-            total_target=Sum('target'),
-            total_cnc_height=Sum('cnc_height'),
-            total_cnc_od=Sum('cnc_od'),
-            total_cnc_bore=Sum('cnc_bore'),
-            total_cnc_groove=Sum('cnc_groove'),
-            total_cnc_dent=Sum('cnc_dent'),
-            total_forging_height=Sum('forging_height'),
-            total_forging_od=Sum('forging_od'),
-            total_forging_bore=Sum('forging_bore'),
-            total_forging_crack=Sum('forging_crack'),
-            total_forging_dent=Sum('forging_dent'),
-            total_pre_mc_bore=Sum('pre_mc_bore'),
-            total_pre_mc_od=Sum('pre_mc_od'),
-            total_pre_mc_height=Sum('pre_mc_height'),
-            rust=Sum('rust')
-        )
-
-        for item in fi_aggregated:
-            component = item['component']
-            production = item['total_production'] or 0
-            target = item['total_target'] or 0
-            cost_per_piece = masterlist_data.get(component, {}).get("cost", 0)
-
-            total_fi_production += production
-
-            rejection_reasons = {
-                "cnc_height": item['total_cnc_height'] or 0,
-                "cnc_od": item['total_cnc_od'] or 0,
-                "cnc_bore": item['total_cnc_bore'] or 0,
-                "cnc_groove": item['total_cnc_groove'] or 0,
-                "cnc_dent": item['total_cnc_dent'] or 0,
-                "forging_height": item['total_forging_height'] or 0,
-                "forging_od": item['total_forging_od'] or 0,
-                "forging_bore": item['total_forging_bore'] or 0,
-                "forging_crack": item['total_forging_crack'] or 0,
-                "forging_dent": item['total_forging_dent'] or 0,
-                "pre_mc_bore": item['total_pre_mc_bore'] or 0,
-                "pre_mc_od": item['total_pre_mc_od'] or 0,
-                "pre_mc_height": item['total_pre_mc_height'] or 0,
-                "rust": item['rust'] or 0
-            }
-
-            total_component_rejection = sum(rejection_reasons.values())
-            total_fi_rejection += total_component_rejection
-
-            # Calculate rejection cost
-            rejection_cost = total_component_rejection * cost_per_piece
-            total_fi_rejection_cost += rejection_cost
-
-            # Calculate rejection percentage
-            component_rejection_percent = (
-                (total_component_rejection / production) * 100
-                if production > 0 else 0
-            )
-
-            fi_data[component] = {
-                "production": production,
-                "target": target,
-                "machining_rejection": total_component_rejection,
-                "rejection_percent": round(component_rejection_percent, 2),
-                "rejection_cost": rejection_cost,
-                "customer": masterlist_data.get(component, {}).get("customer", "N/A"),
-                "cost_per_piece": cost_per_piece,
-                "rejection_reasons": rejection_reasons,
-            }
-
-        # Sort machining data by production in decreasing order
-        fi_data = dict(sorted(fi_data.items(), key=lambda x: x[1]["production"], reverse=True))
-
-        # Visual SECTION
-        visual_data = {}
-        total_visual_production = 0
-        total_visual_rejection = 0
-        total_visual_rejection_cost = 0
-
-        # Aggregate machining data in a single query
-        visual_aggregated = visual_qs.values('component').annotate(
-            total_production=Sum('production'),
-            total_target=Sum('target'),
-            total_cnc_height=Sum('cnc_height'),
-            total_cnc_od=Sum('cnc_od'),
-            total_cnc_bore=Sum('cnc_bore'),
-            total_cnc_groove=Sum('cnc_groove'),
-            total_cnc_dent=Sum('cnc_dent'),
-            total_forging_height=Sum('forging_height'),
-            total_forging_od=Sum('forging_od'),
-            total_forging_bore=Sum('forging_bore'),
-            total_forging_crack=Sum('forging_crack'),
-            total_forging_dent=Sum('forging_dent'),
-            total_pre_mc_bore=Sum('pre_mc_bore'),
-            total_pre_mc_od=Sum('pre_mc_od'),
-            total_pre_mc_height=Sum('pre_mc_height'),
-            cnc_rust=Sum('cnc_rust')
-        )
-
-        for item in visual_aggregated:
-            component = item['component']
-            production = item['total_production'] or 0
-            target = item['total_target'] or 0
-            cost_per_piece = masterlist_data.get(component, {}).get("cost", 0)
-
-            total_visual_production += production
-
-            rejection_reasons = {
-                "cnc_height": item['total_cnc_height'] or 0,
-                "cnc_od": item['total_cnc_od'] or 0,
-                "cnc_bore": item['total_cnc_bore'] or 0,
-                "cnc_groove": item['total_cnc_groove'] or 0,
-                "cnc_dent": item['total_cnc_dent'] or 0,
-                "forging_height": item['total_forging_height'] or 0,
-                "forging_od": item['total_forging_od'] or 0,
-                "forging_bore": item['total_forging_bore'] or 0,
-                "forging_crack": item['total_forging_crack'] or 0,
-                "forging_dent": item['total_forging_dent'] or 0,
-                "pre_mc_bore": item['total_pre_mc_bore'] or 0,
-                "pre_mc_od": item['total_pre_mc_od'] or 0,
-                "pre_mc_height": item['total_pre_mc_height'] or 0,
-                "cnc_rust": item['cnc_rust'] or 0
-            }
-
-            total_component_rejection = sum(rejection_reasons.values())
-            total_visual_rejection += total_component_rejection
-
-            # Calculate rejection cost
-            rejection_cost = total_component_rejection * cost_per_piece
-            total_visual_rejection_cost += rejection_cost
-
-            # Calculate rejection percentage
-            component_rejection_percent = (
-                (total_component_rejection / production) * 100
-                if production > 0 else 0
-            )
-
-            visual_data[component] = {
-                "production": production,
-                "target": target,
-                "machining_rejection": total_component_rejection,
-                "rejection_percent": round(component_rejection_percent, 2),
-                "rejection_cost": rejection_cost,
-                "customer": masterlist_data.get(component, {}).get("customer", "N/A"),
-                "cost_per_piece": cost_per_piece,
-                "rejection_reasons": rejection_reasons,
-            }
-
-        # Sort machining data by production in decreasing order
-        visual_data = dict(sorted(visual_data.items(), key=lambda x: x[1]["production"], reverse=True))
-
+        # VISUAL SECTION
+        visual_fields = ['cnc_height', 'cnc_od', 'cnc_bore', 'cnc_groove', 'cnc_dent', 'forging_height', 'forging_od', 'forging_bore', 'forging_crack', 'forging_dent', 'pre_mc_bore', 'pre_mc_od', 'pre_mc_height', 'cnc_rust']
+        visual_aggregated = aggregate_data(visual_qs, visual_fields)
+        visual_data, total_visual_production, total_visual_target, total_visual_production_day, total_visual_production_night, total_visual_target_day, total_visual_target_night, total_visual_rejection, total_visual_rejection_cost = process_section_data(
+            visual_aggregated, masterlist_data, visual_fields, "visual")
 
         # MACHINING SECTION
-        machining_data = {}
-        total_machining_production = 0
-        total_machining_rejection = 0
-        total_machining_rejection_cost = 0
-
-        # Aggregate machining data in a single query
+        machining_fields = ['cnc_height', 'cnc_od', 'cnc_bore', 'cnc_groove', 'cnc_dent', 'forging_height', 'forging_od', 'forging_bore', 'forging_crack', 'forging_dent', 'pre_mc_bore', 'pre_mc_od', 'pre_mc_height']
         machining_aggregated = machining_qs.values('component').annotate(
-            total_production=Sum(Case(
-                When(setup="II", then=F("production")),
-                default=Value(0),  # Use Value(0) for default
-                output_field=IntegerField()
-            )),
-            total_target=Sum(Case(
-                When(setup="II", then=F("target")),
-                default=Value(0),  # Use Value(0) for default
-                output_field=IntegerField()
-            )),
-            total_cnc_height=Sum('cnc_height'),
-            total_cnc_od=Sum('cnc_od'),
-            total_cnc_bore=Sum('cnc_bore'),
-            total_cnc_groove=Sum('cnc_groove'),
-            total_cnc_dent=Sum('cnc_dent'),
-            total_forging_height=Sum('forging_height'),
-            total_forging_od=Sum('forging_od'),
-            total_forging_bore=Sum('forging_bore'),
-            total_forging_crack=Sum('forging_crack'),
-            total_forging_dent=Sum('forging_dent'),
-            total_pre_mc_bore=Sum('pre_mc_bore'),
-            total_pre_mc_od=Sum('pre_mc_od'),
-            total_pre_mc_height=Sum('pre_mc_height')
+            total_production=Sum(Case(When(setup='II', then=F("production")), default=Value(0), output_field=IntegerField())),
+            total_target= Sum(Case(When(setup='II', then=F("target")), default=Value(0), output_field=IntegerField())),
+            total_production_day=Sum(Case(When(shift="day", setup='II', then=F("production")), default=Value(0), output_field=IntegerField())),
+            total_target_day=Sum(Case(When(shift="day",setup='II', then=F("target")), default=Value(0), output_field=IntegerField())),
+            total_production_night=Sum(Case(When(shift="night", setup='II', then=F("production")), default=Value(0), output_field=IntegerField())),
+            total_target_night=Sum(Case(When(shift="night",setup='II', then=F("target")), default=Value(0), output_field=IntegerField())),
+            **{f'total_{field}': Sum(field) for field in machining_fields}
         )
 
-        # Create a set of all components in machining, fi, and visual
-        all_components = set()
-        all_components.update([item['component'] for item in machining_aggregated])
-        all_components.update(fi_data.keys())
-        all_components.update(visual_data.keys())
+        machining_data, total_machining_production, total_machining_target, total_machining_production_day, total_machining_production_night, total_machining_target_day, total_machining_target_night, total_machining_rejection, total_machining_rejection_cost = process_section_data(
+            machining_aggregated, masterlist_data, machining_fields, "machining", qs=machining_qs, unique_fields=["machine_no"]
+        )
 
-        for component in all_components:
-            # Initialize production and target for the component
-            production = 0
-            target = 0
-            cost_per_piece = masterlist_data.get(component, {}).get("cost", 0)
+        # Identify components in Visual and FI but not in Machining
+        visual_components = set(visual_data.keys())
+        fi_components = set(fi_data.keys())
+        machining_components = set(machining_data.keys())
 
-            total_machining_production += production
+        missing_components = (visual_components | fi_components) - machining_components
 
-            # Initialize rejection reasons
-            rejection_reasons = {
-                "cnc_height": 0,
-                "cnc_od": 0,
-                "cnc_bore": 0,
-                "cnc_groove": 0,
-                "cnc_dent": 0,
-                "forging_height": 0,
-                "forging_od": 0,
-                "forging_bore": 0,
-                "forging_crack": 0,
-                "forging_dent": 0,
-                "pre_mc_bore": 0,
-                "pre_mc_od": 0,
-                "pre_mc_height": 0
-            }
-
-            # If the component exists in machining data, update production, target, and rejection reasons
-            if component in [item['component'] for item in machining_aggregated]:
-                item = next(item for item in machining_aggregated if item['component'] == component)
-                production = item['total_production'] or 0
-                target = item['total_target'] or 0
-                rejection_reasons.update({
-                    "cnc_height": item['total_cnc_height'] or 0,
-                    "cnc_od": item['total_cnc_od'] or 0,
-                    "cnc_bore": item['total_cnc_bore'] or 0,
-                    "cnc_groove": item['total_cnc_groove'] or 0,
-                    "cnc_dent": item['total_cnc_dent'] or 0,
-                    "forging_height": item['total_forging_height'] or 0,
-                    "forging_od": item['total_forging_od'] or 0,
-                    "forging_bore": item['total_forging_bore'] or 0,
-                    "forging_crack": item['total_forging_crack'] or 0,
-                    "forging_dent": item['total_forging_dent'] or 0,
-                    "pre_mc_bore": item['total_pre_mc_bore'] or 0,
-                    "pre_mc_od": item['total_pre_mc_od'] or 0,
-                    "pre_mc_height": item['total_pre_mc_height'] or 0
-                })
-
-            # Merge Visual and FI data into machining_data
-            if component in visual_data:
-                for reason, value in visual_data[component]['rejection_reasons'].items():
-                    if reason in rejection_reasons:
-                        rejection_reasons[reason] += value
-                    else:
-                        rejection_reasons[reason] = value
-
-            if component in fi_data:
-                for reason, value in fi_data[component]['rejection_reasons'].items():
-                    if reason in rejection_reasons:
-                        rejection_reasons[reason] += value
-                    else:
-                        rejection_reasons[reason] = value
-
-            total_component_rejection = sum(rejection_reasons.values())
-            total_machining_rejection += total_component_rejection
-
-
-
-            # Calculate rejection cost
-            rejection_cost = total_component_rejection * cost_per_piece
-            total_machining_rejection_cost += rejection_cost
-
-            # Calculate rejection percentage
-            component_rejection_percent = 0 if production == 0 else (
-                    (total_component_rejection / production) * 100
-                )
-
-
-
+        # Add missing components to machining_data with production and target set to 0
+        for component in missing_components:
             machining_data[component] = {
-                "production": production,
-                "target": target,
-                "machining_rejection": total_component_rejection,
-                "rejection_percent": round(component_rejection_percent, 2),
-                "rejection_cost": rejection_cost,
+                "production": 0,
+                "target": 0,
+                "production_day": 0,
+                "production_night": 0,
+                "target_day": 0,
+                "target_night": 0,
+                "machining_rejection": 0,
+                "rejection_percent": 0,
+                "rejection_cost": 0,
                 "customer": masterlist_data.get(component, {}).get("customer", "N/A"),
-                "cost_per_piece": cost_per_piece,
-                "rejection_reasons": rejection_reasons,
-                "unique_machine_numbers": list(machining_qs.filter(component=component, setup__in=["II", "I"]).values_list("machine_no", flat=True).distinct())
+                "cost_per_piece": masterlist_data.get(component, {}).get("cost", 0),
+                "rejection_reasons": {field: 0 for field in machining_fields},
+                "unique_machine_nos": ["NA"]
             }
 
-        # Sort machining data by production in decreasing order
-        machining_data = dict(sorted(machining_data.items(), key=lambda x: x[1]["production"], reverse=True))
+        # Add rejection values from FI and Visual to Machining for each component
+        for component in machining_data:
+            # Get rejection reasons from FI and Visual for this component
+            fi_rejection_reasons = fi_data.get(component, {}).get("rejection_reasons", {})
+            visual_rejection_reasons = visual_data.get(component, {}).get("rejection_reasons", {})
 
+            # Add FI and Visual rejection values to Machining
+            for field, value in fi_rejection_reasons.items():
+                if field in machining_data[component]["rejection_reasons"]:
+                    machining_data[component]["rejection_reasons"][field] += value
+                else:
+                    machining_data[component]["rejection_reasons"][field] = value
 
-        # broch SECTION
-        broch_data = {}
-        total_broch_production = 0
-        total_broch_rejection = 0
-        total_broch_rejection_cost = 0
+            for field, value in visual_rejection_reasons.items():
+                if field in machining_data[component]["rejection_reasons"]:
+                    machining_data[component]["rejection_reasons"][field] += value
+                else:
+                    machining_data[component]["rejection_reasons"][field] = value
 
-        # Aggregate machining data in a single query
+            # Update total rejection for Machining
+            total_component_rejection = sum(machining_data[component]["rejection_reasons"].values())
+            machining_data[component]["machining_rejection"] = total_component_rejection
+            machining_data[component]["rejection_percent"] = calculate_rejection_percent(total_component_rejection, machining_data[component]["production"])
+
+        # Calculate rejection percentages
+        forging_rejection_percent = calculate_rejection_percent(total_forging_rejection, total_forging_production)
+        machining_rejection_percent = calculate_rejection_percent(total_machining_rejection, total_machining_production)
+
+        # BROCH SECTION
         broch_aggregated = machining_qs.filter(setup="broch").values('component').annotate(
             total_production=Sum("production"),
             total_target=Sum("target"),
-            total_cnc_height=Sum('cnc_height'),
-            total_cnc_od=Sum('cnc_od'),
-            total_cnc_bore=Sum('cnc_bore'),
-            total_cnc_groove=Sum('cnc_groove'),
-            total_cnc_dent=Sum('cnc_dent'),
-            total_forging_height=Sum('forging_height'),
-            total_forging_od=Sum('forging_od'),
-            total_forging_bore=Sum('forging_bore'),
-            total_forging_crack=Sum('forging_crack'),
-            total_forging_dent=Sum('forging_dent'),
-            total_pre_mc_bore=Sum('pre_mc_bore'),
-            total_pre_mc_od=Sum('pre_mc_od'),
-            total_pre_mc_height=Sum('pre_mc_height'),
+            total_production_day=Sum(Case(When(shift="day", then=F("production")), default=Value(0), output_field=IntegerField())),
+            total_target_day=Sum(Case(When(shift="day", then=F("target")), default=Value(0), output_field=IntegerField())),
+            total_production_night=Sum(Case(When(shift="night", then=F("production")), default=Value(0), output_field=IntegerField())),
+            total_target_night=Sum(Case(When(shift="night", then=F("target")), default=Value(0), output_field=IntegerField())),
+            **{f'total_{field}': Sum(field) for field in machining_fields}
         )
+        broch_data, total_broch_production, total_broch_target, total_broch_production_day, total_broch_production_night, total_broch_target_day, total_broch_target_night, total_broch_rejection, total_broch_rejection_cost = process_section_data(
+            broch_aggregated, masterlist_data, machining_fields, "broch", qs=machining_qs.filter(setup="broch"), unique_fields=["machine_no"])
 
-
-        for item in broch_aggregated:
-            component = item['component']
-            production = item['total_production'] or 0
-            target = item['total_target'] or 0
-            cost_per_piece = masterlist_data.get(component, {}).get("cost", 0)
-
-            total_broch_production += production
-
-            rejection_reasons = {
-                "cnc_height": item['total_cnc_height'] or 0,
-                "cnc_od": item['total_cnc_od'] or 0,
-                "cnc_bore": item['total_cnc_bore'] or 0,
-                "cnc_groove": item['total_cnc_groove'] or 0,
-                "cnc_dent": item['total_cnc_dent'] or 0,
-                "forging_height": item['total_forging_height'] or 0,
-                "forging_od": item['total_forging_od'] or 0,
-                "forging_bore": item['total_forging_bore'] or 0,
-                "forging_crack": item['total_forging_crack'] or 0,
-                "forging_dent": item['total_forging_dent'] or 0,
-                "pre_mc_bore": item['total_pre_mc_bore'] or 0,
-                "pre_mc_od": item['total_pre_mc_od'] or 0,
-                "pre_mc_height": item['total_pre_mc_height'] or 0,
-            }
-
-            total_component_rejection = sum(rejection_reasons.values())
-            total_broch_rejection += total_component_rejection
-
-            # Calculate rejection cost
-            rejection_cost = total_component_rejection * cost_per_piece
-            total_broch_rejection_cost += rejection_cost
-
-            # Calculate rejection percentage
-            component_rejection_percent = (
-                (total_component_rejection / production) * 100
-                if production > 0 else 0
-            )
-
-            broch_data[component] = {
-                "production": production,
-                "target": target,
-                "machining_rejection": total_component_rejection,
-                "rejection_percent": round(component_rejection_percent, 2),
-                "rejection_cost": rejection_cost,
-                "customer": masterlist_data.get(component, {}).get("customer", "N/A"),
-                "cost_per_piece": cost_per_piece,
-                "rejection_reasons": rejection_reasons,
-                "unique_machine_numbers": list(machining_qs.filter(component=component, setup__in=["broch"]).values_list("machine_no", flat=True).distinct())
-            }
-
-        # Sort machining data by production in decreasing order
-        broch_data = dict(sorted(broch_data.items(), key=lambda x: x[1]["production"], reverse=True))
-
-
-
-        # broch SECTION
-        vmv_data = {}
-        total_vmv_production = 0
-        total_vmv_rejection = 0
-        total_vmv_rejection_cost = 0
-
-        # Aggregate machining data in a single query
+        # VMC SECTION
         vmv_aggregated = machining_qs.filter(mc_type="vmc").values('component').annotate(
             total_production=Sum("production"),
             total_target=Sum("target"),
-            total_cnc_height=Sum('cnc_height'),
-            total_cnc_od=Sum('cnc_od'),
-            total_cnc_bore=Sum('cnc_bore'),
-            total_cnc_groove=Sum('cnc_groove'),
-            total_cnc_dent=Sum('cnc_dent'),
-            total_forging_height=Sum('forging_height'),
-            total_forging_od=Sum('forging_od'),
-            total_forging_bore=Sum('forging_bore'),
-            total_forging_crack=Sum('forging_crack'),
-            total_forging_dent=Sum('forging_dent'),
-            total_pre_mc_bore=Sum('pre_mc_bore'),
-            total_pre_mc_od=Sum('pre_mc_od'),
-            total_pre_mc_height=Sum('pre_mc_height'),
+            total_production_day=Sum(Case(When(shift="day", then=F("production")), default=Value(0), output_field=IntegerField())),
+            total_target_day=Sum(Case(When(shift="day", then=F("target")), default=Value(0), output_field=IntegerField())),
+            total_production_night=Sum(Case(When(shift="night", then=F("production")), default=Value(0), output_field=IntegerField())),
+            total_target_night=Sum(Case(When(shift="night", then=F("target")), default=Value(0), output_field=IntegerField())),
+            **{f'total_{field}': Sum(field) for field in machining_fields}
         )
+        vmv_data, total_vmv_production, total_vmv_target, total_vmv_production_day, total_vmv_production_night, total_vmv_target_day, total_vmv_target_night, total_vmv_rejection, total_vmv_rejection_cost = process_section_data(
+            vmv_aggregated, masterlist_data, machining_fields, "vmv", qs=machining_qs.filter(mc_type="vmc"), unique_fields=["machine_no"])
 
-
-        for item in vmv_aggregated:
-            component = item['component']
-            production = item['total_production'] or 0
-            target = item['total_target'] or 0
-            cost_per_piece = masterlist_data.get(component, {}).get("cost", 0)
-
-            total_vmv_production += production
-
-            rejection_reasons = {
-                "cnc_height": item['total_cnc_height'] or 0,
-                "cnc_od": item['total_cnc_od'] or 0,
-                "cnc_bore": item['total_cnc_bore'] or 0,
-                "cnc_groove": item['total_cnc_groove'] or 0,
-                "cnc_dent": item['total_cnc_dent'] or 0,
-                "forging_height": item['total_forging_height'] or 0,
-                "forging_od": item['total_forging_od'] or 0,
-                "forging_bore": item['total_forging_bore'] or 0,
-                "forging_crack": item['total_forging_crack'] or 0,
-                "forging_dent": item['total_forging_dent'] or 0,
-                "pre_mc_bore": item['total_pre_mc_bore'] or 0,
-                "pre_mc_od": item['total_pre_mc_od'] or 0,
-                "pre_mc_height": item['total_pre_mc_height'] or 0,
-            }
-
-            total_component_rejection = sum(rejection_reasons.values())
-            total_vmv_rejection += total_component_rejection
-
-            # Calculate rejection cost
-            rejection_cost = total_component_rejection * cost_per_piece
-            total_vmv_rejection_cost += rejection_cost
-
-            # Calculate rejection percentage
-            component_rejection_percent = (
-                (total_component_rejection / production) * 100
-                if production > 0 else 0
-            )
-
-            vmv_data[component] = {
-                "production": production,
-                "target": target,
-                "machining_rejection": total_component_rejection,
-                "rejection_percent": round(component_rejection_percent, 2),
-                "rejection_cost": rejection_cost,
-                "customer": masterlist_data.get(component, {}).get("customer", "N/A"),
-                "cost_per_piece": cost_per_piece,
-                "rejection_reasons": rejection_reasons,
-                "unique_machine_numbers": list(machining_qs.filter(component=component, mc_type__in=["vmc"]).values_list("machine_no", flat=True).distinct())
-            }
-
-        # Sort machining data by production in decreasing order
-        vmv_data = dict(sorted(vmv_data.items(), key=lambda x: x[1]["production"], reverse=True))
-
-         # CF SECTION
-        cf_data = {}
-        total_cf_production = 0
-        total_cf_rejection = 0
-        total_cf_rejection_cost = 0
-
-        # Aggregate machining data in a single query
+        # CF SECTION
         cf_aggregated = machining_qs.filter(mc_type="cf").values('component').annotate(
             total_production=Sum("production"),
             total_target=Sum("target"),
-            total_cnc_height=Sum('cnc_height'),
-            total_cnc_od=Sum('cnc_od'),
-            total_cnc_bore=Sum('cnc_bore'),
-            total_cnc_groove=Sum('cnc_groove'),
-            total_cnc_dent=Sum('cnc_dent'),
-            total_forging_height=Sum('forging_height'),
-            total_forging_od=Sum('forging_od'),
-            total_forging_bore=Sum('forging_bore'),
-            total_forging_crack=Sum('forging_crack'),
-            total_forging_dent=Sum('forging_dent'),
-            total_pre_mc_bore=Sum('pre_mc_bore'),
-            total_pre_mc_od=Sum('pre_mc_od'),
-            total_pre_mc_height=Sum('pre_mc_height'),
+            total_production_day=Sum(Case(When(shift="day", then=F("production")), default=Value(0), output_field=IntegerField())),
+            total_target_day=Sum(Case(When(shift="day", then=F("target")), default=Value(0), output_field=IntegerField())),
+            total_production_night=Sum(Case(When(shift="night", then=F("production")), default=Value(0), output_field=IntegerField())),
+            total_target_night=Sum(Case(When(shift="night", then=F("target")), default=Value(0), output_field=IntegerField())),
+            **{f'total_{field}': Sum(field) for field in machining_fields}
         )
-
-
-        for item in cf_aggregated:
-            component = item['component']
-            production = item['total_production'] or 0
-            target = item['total_target'] or 0
-            cost_per_piece = masterlist_data.get(component, {}).get("cost", 0)
-
-            total_cf_production += production
-
-            rejection_reasons = {
-                "cnc_height": item['total_cnc_height'] or 0,
-                "cnc_od": item['total_cnc_od'] or 0,
-                "cnc_bore": item['total_cnc_bore'] or 0,
-                "cnc_groove": item['total_cnc_groove'] or 0,
-                "cnc_dent": item['total_cnc_dent'] or 0,
-                "forging_height": item['total_forging_height'] or 0,
-                "forging_od": item['total_forging_od'] or 0,
-                "forging_bore": item['total_forging_bore'] or 0,
-                "forging_crack": item['total_forging_crack'] or 0,
-                "forging_dent": item['total_forging_dent'] or 0,
-                "pre_mc_bore": item['total_pre_mc_bore'] or 0,
-                "pre_mc_od": item['total_pre_mc_od'] or 0,
-                "pre_mc_height": item['total_pre_mc_height'] or 0,
-            }
-
-            total_component_rejection = sum(rejection_reasons.values())
-            total_cf_rejection += total_component_rejection
-
-            # Calculate rejection cost
-            rejection_cost = total_component_rejection * cost_per_piece
-            total_cf_rejection_cost += rejection_cost
-
-            # Calculate rejection percentage
-            component_rejection_percent = (
-                (total_component_rejection / production) * 100
-                if production > 0 else 0
-            )
-
-            cf_data[component] = {
-                "production": production,
-                "target": target,
-                "machining_rejection": total_component_rejection,
-                "rejection_percent": round(component_rejection_percent, 2),
-                "rejection_cost": rejection_cost,
-                "customer": masterlist_data.get(component, {}).get("customer", "N/A"),
-                "cost_per_piece": cost_per_piece,
-                "rejection_reasons": rejection_reasons,
-                "unique_machine_numbers": list(machining_qs.filter(component=component, mc_type__in=["cf"]).values_list("machine_no", flat=True).distinct())
-            }
-
-        # Sort machining data by production in decreasing order
-        cf_data = dict(sorted(cf_data.items(), key=lambda x: x[1]["production"], reverse=True))
-
-
-
-
+        cf_data, total_cf_production, total_cf_target, total_cf_production_day, total_cf_production_night, total_cf_target_day, total_cf_target_night, total_cf_rejection, total_cf_rejection_cost = process_section_data(
+            cf_aggregated, masterlist_data, machining_fields, "cf", qs=machining_qs.filter(mc_type="cf"), unique_fields=["machine_no"])
 
         # Calculate rejection percentages
-        forging_rejection_percent = (
-            (total_forging_rejection / total_forging_production) * 100
-            if total_forging_production > 0 else 0
-        )
+        forging_rejection_percent = calculate_rejection_percent(total_forging_rejection, total_forging_production)
+        machining_rejection_percent = calculate_rejection_percent(total_machining_rejection, total_machining_production)
 
-        machining_rejection_percent = (
-            (total_machining_rejection / total_machining_production) * 100
-            if total_machining_production > 0 else 0
-        )
+        # Identify components in Visual and FI but not in Machining
+        visual_components = set(visual_data.keys())
+        fi_components = set(fi_data.keys())
+        machining_components = set(machining_data.keys())
+
+        missing_components = (visual_components | fi_components) - machining_components
+
+        # Add missing components to machining_data with production and target set to 0
+        for component in missing_components:
+            machining_data[component] = {
+                "production": 0,
+                "target": 0,
+                "production_day": 0,
+                "production_night": 0,
+                "target_day": 0,
+                "target_night": 0,
+                "machining_rejection": 0,
+                "rejection_percent": 0,
+                "rejection_cost": 0,
+                "customer": masterlist_data.get(component, {}).get("customer", "N/A"),
+                "cost_per_piece": masterlist_data.get(component, {}).get("cost", 0),
+                "rejection_reasons": {field: 0 for field in machining_fields},
+                "unique_machine_nos": ["NA"]
+            }
 
         return Response({
             "forging": {
                 "total_production": total_forging_production,
+                "total_target": total_forging_target,
+                "total_production_day": total_forging_production_day,
+                "total_production_night": total_forging_production_night,
+                "total_target_day": total_forging_target_day,
+                "total_target_night": total_forging_target_night,
                 "total_rejection": total_forging_rejection,
                 "total_rejection_cost": total_forging_rejection_cost,
                 "rejection_percent": round(forging_rejection_percent, 2),
@@ -2354,13 +1978,17 @@ class ForgingQualityReportAPIView(APIView):
             },
             "machining": {
                 "total_production": total_machining_production,
+                "total_target": total_machining_target,
+                "total_production_day": total_machining_production_day,
+                "total_production_night": total_machining_production_night,
+                "total_target_day": total_machining_target_day,
+                "total_target_night": total_machining_target_night,
                 "total_rejection": total_machining_rejection,
                 "rejection_percent": round(machining_rejection_percent, 2),
                 "total_rejection_cost": total_machining_rejection_cost,
                 "components": machining_data
             },
             "machining1": {
-                
                 "components": broch_data
             },
             "machining2": {
@@ -2369,9 +1997,8 @@ class ForgingQualityReportAPIView(APIView):
             "machining3": {
                 "components": cf_data
             }
-
         }, status=status.HTTP_200_OK)
-
+    
 from django.db.models.functions import Coalesce
 from django.db.models import Sum, F, Value as V
 
@@ -2491,6 +2118,7 @@ from rest_framework import viewsets
 from .models import Order
 from .serializers import OrderSerializer
 
+
 class OrderViewSet(viewsets.ModelViewSet):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
@@ -2499,19 +2127,25 @@ class OrderViewSet(viewsets.ModelViewSet):
     def update_actual_delivery(self, request, pk=None):
         order = self.get_object()
         actual_date_str = request.data.get('actual_delivery_date')
+        heat_no = request.data.get('heat_no')  # Get heat_no from request
 
         if actual_date_str:
             try:
                 # Convert string date to datetime.date
                 actual_date = datetime.strptime(actual_date_str, "%Y-%m-%d").date()
-
-                # Update fields
                 order.actual_delivery_date = actual_date
                 order.delay_days = (actual_date - order.delivery_date).days
-                order.save()
-
-                return Response({'status': 'updated', 'delay_days': order.delay_days})
             except ValueError:
                 return Response({'error': 'Invalid date format. Use YYYY-MM-DD'}, status=400)
 
-        return Response({'error': 'Invalid date provided'}, status=400)
+        # Update heat_no if provided
+        if heat_no:
+            order.heat_no = heat_no
+        
+        order.save()
+
+        return Response({
+            'status': 'updated',
+            'delay_days': order.delay_days,
+            'heat_no': order.heat_no
+        })

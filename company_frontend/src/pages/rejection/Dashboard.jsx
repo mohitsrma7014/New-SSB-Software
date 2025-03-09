@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import { Sidebar } from '../../components/AdminComponents/Sidebar';
-import * as XLSX from 'xlsx';
 
 import {
   Card,
@@ -15,6 +14,7 @@ import {
   TableBody,
   Skeleton,
   Button,
+  TableFooter,
 } from "@mui/material";
 
 const API_URL = "http://192.168.1.199:8001/raw_material/api/forging-quality-report/";
@@ -26,41 +26,21 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [hoveredRow, setHoveredRow] = useState(null);
 
-  const exportToExcel = (tableData, fileName) => {
-    // Create a new workbook
-    const workbook = XLSX.utils.book_new();
-  
-    // Convert table data to a worksheet
-    const worksheet = XLSX.utils.json_to_sheet(tableData);
-  
-    // Add the worksheet to the workbook
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
-  
-    // Write the workbook to a file
-    XLSX.writeFile(workbook, `${fileName}.xlsx`);
-  };
-
   const fetchData = async () => {
     setLoading(true);
     try {
       const response = await axios.get(API_URL, { params: filters });
-  
-      if (!response.data || Object.keys(response.data).length === 0) {
-        setData(null); // Ensure data is set to null for proper handling
-      } else {
-        setData(response.data);
-      }
+      setData(response.data || null);
     } catch (error) {
       console.error("Error fetching data:", error);
-      setData(null); // Handle case where request fails
+      setData(null);
     }
     setLoading(false);
   };
-  
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [filters]);
 
   const handleFilterChange = (e) => {
     setFilters({ ...filters, [e.target.name]: e.target.value });
@@ -85,273 +65,267 @@ const Dashboard = () => {
     if (!tableData || !tableData.components) {
       return <div className="text-gray-500 font-semibold text-center">No Data Available</div>;
     }
-  
-    // Define colors for each section
+
     const sectionColors = {
-      cnc: "#e6f7ff", // Light blue for CNC
-      forging: "#fff3e6", // Light orange for Forging
-      pre_mc: "#e6ffe6", // Light green for Pre-MC
+      cnc: "#e6f7ff",
+      forging: "#fff3e6",
+      pre_mc: "#e6ffe6",
     };
-  
-    // Group rejection reasons into categories (only for Machining table)
-    const groupedReasons =
-    type === "machining" || type === "machining1"|| type === "machining2"|| type === "machining3"
-      ? {
-          cnc: ["cnc_height", "cnc_od", "cnc_bore", "cnc_groove", "cnc_dent", "cnc_rust"],
-          forging: ["forging_height", "forging_od", "forging_bore", "forging_crack", "forging_dent"],
-          pre_mc: ["pre_mc_bore", "pre_mc_od", "pre_mc_height"],
-        }
-      : null;
-  
-  // Extract all rejection reasons safely
-  const allRejectionReasons =
-    (type === "machining" || type === "machining1"|| type === "machining3"|| type === "machining2") && groupedReasons
+
+    const groupedReasons = type === "machining" ? {
+      cnc: ["cnc_height", "cnc_od", "cnc_bore", "cnc_groove", "cnc_dent", "cnc_rust"],
+      forging: ["forging_height", "forging_od", "forging_bore", "forging_crack", "forging_dent"],
+      pre_mc: ["pre_mc_bore", "pre_mc_od", "pre_mc_height"],
+    } : null;
+
+    const allRejectionReasons = type === "machining" && groupedReasons
       ? [...(groupedReasons.cnc || []), ...(groupedReasons.forging || []), ...(groupedReasons.pre_mc || [])]
       : Object.keys(tableData.components?.[Object.keys(tableData.components)?.[0]]?.rejection_reasons || {});
-  
-    // Ensure searchQuery is always a string to prevent errors
+
     const safeSearchQuery = searchQuery ? searchQuery.toLowerCase() : "";
-  
-    // Sort and filter data safely
+
     const sortedData = Object.entries(tableData.components)
       .filter(([key, value]) =>
         key.toLowerCase().includes(safeSearchQuery) || value.customer.toLowerCase().includes(safeSearchQuery)
       )
       .sort((a, b) => (b[1].production || 0) - (a[1].production || 0));
 
-      // Function to handle export to Excel
-  const handleExport = () => {
-    const exportData = sortedData.map(([key, value]) => ({
-      Component: key,
-      Customer: value.customer,
-      'Cost/pic.': value.cost_per_piece,
-      'Rejection Cost': value.rejection_cost,
-      Production: value.production,
-      'Total Rejection': value.forging_rejection || value.machining_rejection,
-      'Rejection %': value.rejection_percent || 0,
-      ...value.rejection_reasons,
-    }));
+      const footerSums = sortedData.reduce((acc, [_, value]) => {
+        acc.target = (acc.target || 0) + (value.target || 0);
+        acc.production = (acc.production || 0) + (value.production || 0);
+        acc.totalRejection = (acc.totalRejection || 0) + (value.forging_rejection || value.machining_rejection || 0);
+        acc.rejectionCost = +( (acc.rejectionCost || 0) + (value.rejection_cost || 0) ).toFixed(2);
 
-    exportToExcel(exportData, `${title}_${new Date().toISOString().split('T')[0]}`);
-  };
-  
+        acc.target_day = (acc.target_day || 0) + (value.target_day || 0);
+        acc.production_day = (acc.production_day || 0) + (value.production_day || 0);
+        acc.target_night = (acc.target_night || 0) + (value.target_night || 0);
+        acc.production_night = (acc.production_night || 0) + (value.production_night || 0);
+
+    
+        // Calculate rejection percentage correctly
+        acc.rejectionPercent = acc.production === 0 
+            ? 0 
+            : (acc.totalRejection / acc.production) * 100;
+    
+        if (type === "machining" && groupedReasons) {
+            Object.entries(groupedReasons).forEach(([category, reasons]) => {
+                reasons.forEach((reason) => {
+                    acc[reason] = (acc[reason] || 0) + (value.rejection_reasons[reason] || 0);
+                });
+            });
+        } else {
+            allRejectionReasons.forEach((reason) => {
+                acc[reason] = (acc[reason] || 0) + (value.rejection_reasons?.[reason] || 0);
+            });
+        }
+    
+        return acc;
+    }, {});
+    
+
     return (
       <>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h5>{title}</h5>
-        <Button variant="contained" onClick={handleExport}>Export to Excel</Button>
-      </div>
-        <TableContainer sx={{ maxHeight: 400, overflowY: "auto" }}>
+          <h5>{title}</h5>
+        </div>
+        <TableContainer sx={{ overflowY: "auto" }}>
           <Table stickyHeader>
-          <TableHead>
-  {/* Conditional Header Logic */}
-  {(type === "machining" || type === "machining1"|| type === "machining2"|| type === "machining3")  ? (
-    // Two-row header for Machining table
-    <>
-      {/* First Row: Section Headers (CNC, Forging, Pre-MC) */}
-      <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
-        {/* Static Columns */}
-        <TableCell
-          rowSpan={2} // Span across both header rows
-          sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}
-        >
-          Cnc Machine
-        </TableCell>
-        <TableCell
-          rowSpan={2} // Span across both header rows
-          sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}
-        >
-          Component
-        </TableCell>
-        <TableCell
-          rowSpan={2} // Span across both header rows
-          sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}
-        >
-          Customer
-        </TableCell>
-        <TableCell
-          rowSpan={2} // Span across both header rows
-          sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}
-        >
-          Cost/pic.
-        </TableCell>
-        <TableCell
-          rowSpan={2} // Span across both header rows
-          sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}
-        >
-          Rejection Cost
-        </TableCell>
-        <TableCell
-          rowSpan={2} // Span across both header rows
-          sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}
-        >
-          Production
-        </TableCell>
-        <TableCell
-          rowSpan={2} // Span across both header rows
-          sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}
-        >
-          Total Rejection
-        </TableCell>
-        <TableCell
-          rowSpan={2} // Span across both header rows
-          sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}
-        >
-          Rejection %
-        </TableCell>
-
-        {/* Section Headers for CNC, Forging, Pre-MC */}
-        {Object.entries(groupedReasons).map(([category, reasons]) => (
-          <TableCell
-            key={category}
-            colSpan={reasons.length + 2} // Span across all columns for this category
-            sx={{
-              position: "sticky",
-              top: 0,
-              zIndex: 1200,
-              padding: "1px",
-              fontWeight: "bold",
-              fontSize: ".9rem",
-              textAlign: "center",
-              backgroundColor: sectionColors[category], // Apply section color
-            }}
-          >
-            {category.toUpperCase()}
-          </TableCell>
-        ))}
-      </TableRow>
-
-      {/* Second Row: Column Headers (Height, OD, Bore, Total, Rejection %, etc.) */}
-      <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
-        {/* Empty cells for static columns (already spanned in the first row) */}
-        {[...Array(8)].map((_, index) => (
-          <TableCell key={index} sx={{ display: "none" }} />
-        ))}
-
-        {/* Column Headers for CNC, Forging, Pre-MC */}
-        {Object.entries(groupedReasons).map(([category, reasons]) => (
-          <>
-            {/* Rejection Reason Columns */}
-            {reasons.map((reason) => (
-              <TableCell
-                key={reason}
-                sx={{
-                  position: "sticky",
-                  top: 0,
-                  zIndex: 1200,
-                  padding: "1px",
-                  fontWeight: "bold",
-                  fontSize: ".9rem",
-                  textAlign: "center",
-                  backgroundColor: sectionColors[category], // Apply section color
-                }}
-              >
-                {reason.replace(`${category}_`, "").toUpperCase()}
-              </TableCell>
-            ))}
-
-            {/* Total Column */}
-            <TableCell
-              key={`total-${category}`}
-              sx={{
-                position: "sticky",
-                top: 0,
-                zIndex: 1200,
-                padding: "1px",
-                fontWeight: "bold",
-                fontSize: ".9rem",
-                textAlign: "center",
-                backgroundColor: sectionColors[category], // Apply section color
-              }}
-            >
-              Total
-            </TableCell>
-
-            {/* Rejection % Column */}
-            <TableCell
-              key={`rejection-percent-${category}`}
-              sx={{
-                position: "sticky",
-                top: 0,
-                zIndex: 1200,
-                padding: "1px",
-                fontWeight: "bold",
-                fontSize: ".9rem",
-                textAlign: "center",
-                backgroundColor: sectionColors[category], // Apply section color
-              }}
-            >
-              Rejection %
-            </TableCell>
-          </>
-        ))}
-      </TableRow>
-    </>
-  ) : (
-    // Single-row header for Forging and Machining1 tables
-    <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
-      {/* Static Columns */}
-      {type === "forging" ? (
-        <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
-          Lines
-        </TableCell>
-      ) : (
-        <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
-          Cnc Machine
-        </TableCell>
-      )}
-      <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
-        Component
-      </TableCell>
-      <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
-        Customer
-      </TableCell>
-      <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
-        Cost/pic.
-      </TableCell>
-      {type === "forging" && (
-        <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
-          Forman
-        </TableCell>
-      )}
-      <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
-        Rejection Cost
-      </TableCell>
-      <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
-        Production
-      </TableCell>
-      <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
-        Total Rejection
-      </TableCell>
-      <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
-        Rejection %
-      </TableCell>
-
-      {/* Flat Rejection Reasons (for Forging and Machining1 tables) */}
-      {allRejectionReasons.map((reason) => (
-        <TableCell
-          key={reason}
-          sx={{
-            padding: "1px",
-            top: 0,
-            zIndex: 1200,
-            position: "sticky",
-            fontWeight: "bold",
-            fontSize: ".9rem",
-            textAlign: "center",
-            backgroundColor: type === "forging" ? sectionColors.forging : "#f5f5f5", // Apply forging color or default
-          }}
-        >
-          {reason}
-        </TableCell>
-      ))}
-    </TableRow>
-  )}
-</TableHead>
-  
+            <TableHead>
+              {type === "machining" ? (
+                <>
+                  <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
+                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                      Cnc Machine
+                    </TableCell>
+                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                      Process
+                    </TableCell>
+                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                      Component
+                    </TableCell>
+                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                      Customer
+                    </TableCell>
+                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                      Cost/pic.
+                    </TableCell>
+                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                      Rejection Cost
+                    </TableCell>
+                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                      Target Day
+                    </TableCell>
+                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                      Production Day
+                    </TableCell>
+                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                      Target Night
+                    </TableCell>
+                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                      Production Night
+                    </TableCell>
+                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                      Total Target
+                    </TableCell>
+                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                      Total Production
+                    </TableCell>
+                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                      Total Rejection
+                    </TableCell>
+                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                      Rejection %
+                    </TableCell>
+                    {Object.entries(groupedReasons).map(([category, reasons]) => (
+                      <TableCell
+                        key={category}
+                        colSpan={reasons.length + 2}
+                        sx={{
+                          position: "sticky",
+                          top: 0,
+                          zIndex: 1200,
+                          padding: "1px",
+                          fontWeight: "bold",
+                          fontSize: ".9rem",
+                          textAlign: "center",
+                          backgroundColor: sectionColors[category],
+                        }}
+                      >
+                        {category.toUpperCase()}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                  <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
+                    {[...Array(8)].map((_, index) => (
+                      <TableCell key={index} sx={{ display: "none" }} />
+                    ))}
+                    {Object.entries(groupedReasons).map(([category, reasons]) => (
+                      <>
+                        {reasons.map((reason) => (
+                          <TableCell
+                            key={reason}
+                            sx={{
+                              position: "sticky",
+                              top: 0,
+                              zIndex: 1200,
+                              padding: "1px",
+                              fontWeight: "bold",
+                              fontSize: ".9rem",
+                              textAlign: "center",
+                              backgroundColor: sectionColors[category],
+                            }}
+                          >
+                            {reason.replace(`${category}_`, "").toUpperCase()}
+                          </TableCell>
+                        ))}
+                        <TableCell
+                          key={`total-${category}`}
+                          sx={{
+                            position: "sticky",
+                            top: 0,
+                            zIndex: 1200,
+                            padding: "1px",
+                            fontWeight: "bold",
+                            fontSize: ".9rem",
+                            textAlign: "center",
+                            backgroundColor: sectionColors[category],
+                          }}
+                        >
+                          Total
+                        </TableCell>
+                        <TableCell
+                          key={`rejection-percent-${category}`}
+                          sx={{
+                            position: "sticky",
+                            top: 0,
+                            zIndex: 1200,
+                            padding: "1px",
+                            fontWeight: "bold",
+                            fontSize: ".9rem",
+                            textAlign: "center",
+                            backgroundColor: sectionColors[category],
+                          }}
+                        >
+                          Rejection %
+                        </TableCell>
+                      </>
+                    ))}
+                  </TableRow>
+                </>
+              ) : (
+                <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
+                  {type === "forging" ? (
+                    <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                      Lines
+                    </TableCell>
+                  ) : (
+                    <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                      Cnc Machine
+                    </TableCell>
+                  )}
+                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                    Component
+                  </TableCell>
+                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                    Customer
+                  </TableCell>
+                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                    Cost/pic.
+                  </TableCell>
+                  {type === "forging" && (
+                    <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                      Forman
+                    </TableCell>
+                  )}
+                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                    Rejection Cost
+                  </TableCell>
+                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                    Target Day
+                  </TableCell>
+                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                    Production Day
+                  </TableCell>
+                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                    Target Night
+                  </TableCell>
+                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                    Production Night 
+                  </TableCell>
+                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                    Total Target
+                  </TableCell>
+                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                    total Production
+                  </TableCell>
+                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                    Total Rejection
+                  </TableCell>
+                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                    Rejection %
+                  </TableCell>
+                  {allRejectionReasons.map((reason) => (
+                    <TableCell
+                      key={reason}
+                      sx={{
+                        padding: "1px",
+                        top: 0,
+                        zIndex: 1200,
+                        position: "sticky",
+                        fontWeight: "bold",
+                        fontSize: ".9rem",
+                        textAlign: "center",
+                        backgroundColor: type === "forging" ? sectionColors.forging : "#f5f5f5",
+                      }}
+                    >
+                      {reason}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              )}
+            </TableHead>
             <TableBody>
               {loading ? (
-                // Skeleton Loader for Table Rows
                 Array.from({ length: 5 }).map((_, index) => (
                   <TableRow key={index}>
                     {[...Array(type === "forging" ? 9 + allRejectionReasons.length : 8 + allRejectionReasons.length)].map((_, i) => (
@@ -362,16 +336,14 @@ const Dashboard = () => {
                   </TableRow>
                 ))
               ) : (
-                // Actual Table Data
                 sortedData.map(([key, value], index) => {
-                  // Calculate totals and rejection percentages for each category
                   const categoryTotals = type === "machining" && groupedReasons
                     ? Object.entries(groupedReasons).reduce((acc, [category, reasons]) => {
                         acc[category] = reasons.reduce((sum, reason) => sum + (value.rejection_reasons[reason] || 0), 0);
                         return acc;
                       }, {})
                     : {};
-  
+
                   const categoryRejectionPercentages = type === "machining" && groupedReasons
                     ? Object.entries(categoryTotals).reduce((acc, [category, totalRejections]) => {
                         acc[category] = value.production === 0
@@ -380,128 +352,248 @@ const Dashboard = () => {
                         return acc;
                       }, {})
                     : {};
-  
+
                   return (
                     <TableRow
-  key={key}
-  onMouseEnter={() => setHoveredRow(key)}
-  onMouseLeave={() => setHoveredRow(null)}
-  sx={{
-    backgroundColor: hoveredRow === key
-      ? "#b3d9ff" // Highlight color when hovered (light blue)
-      : index % 2 === 0
-      ? "#ffffff" // White for even rows
-      : "#f9f9f9", // Light gray for odd rows
-    transition: "background-color 0.3s ease", // Smooth transition
-    "&:hover": { backgroundColor: "#b3d9ff !important" }, // Ensure hover effect takes precedence
-  }}
->
-  {/* Static Columns */}
-  {type === "forging" ? (
-    <TableCell sx={{ padding: "1px", textAlign: "center", backgroundColor: hoveredRow === key ? "#b3d9ff" : (value.rejection_percent || 0) > 100 ? "#ffcccc" : "inherit" }}>
-      {value.unique_lines?.join(", ") || "N/A"}
-    </TableCell>
-  ) : (
-    <TableCell sx={{ padding: "1px", textAlign: "center", backgroundColor: hoveredRow === key ? "#b3d9ff" : (value.rejection_percent || 0) > 100 ? "#ffcccc" : "inherit" }}>
-      {value.unique_machine_numbers?.join(", ") || "N/A"}
-    </TableCell>
-  )}
-  <TableCell sx={{ padding: "1px", textAlign: "center", backgroundColor: hoveredRow === key ? "#b3d9ff" : (value.rejection_percent || 0) > 100 ? "#ffcccc" : "inherit" }}>
-    {key}
-  </TableCell>
-  <TableCell sx={{ padding: "1px", textAlign: "center", backgroundColor: hoveredRow === key ? "#b3d9ff" : (value.rejection_percent || 0) > 100 ? "#ffcccc" : "inherit" }}>
-    {value.customer}
-  </TableCell>
-  <TableCell sx={{ padding: "1px", textAlign: "center", backgroundColor: hoveredRow === key ? "#b3d9ff" : (value.rejection_percent || 0) > 100 ? "#ffcccc" : "inherit" }}>
-    {value.cost_per_piece}
-  </TableCell>
-  {type === "forging" && (
-    <TableCell sx={{ padding: "1px", textAlign: "center", backgroundColor: hoveredRow === key ? "#b3d9ff" : (value.rejection_percent || 0) > 100 ? "#ffcccc" : "inherit" }}>
-      {value.unique_forman?.join(", ") || "N/A"}
-    </TableCell>
-  )}
-  <TableCell sx={{ padding: "1px", textAlign: "center", backgroundColor: hoveredRow === key ? "#b3d9ff" : (value.rejection_percent || 0) > 100 ? "#ffcccc" : "inherit" }}>
-    {value.rejection_cost}
-  </TableCell>
-  <TableCell sx={{ padding: "1px", textAlign: "center", backgroundColor: hoveredRow === key ? "#b3d9ff" : (value.rejection_percent || 0) > 100 ? "#ffcccc" : "inherit" }}>
-    {value.production}
-  </TableCell>
-  <TableCell sx={{ padding: "1px", textAlign: "center", backgroundColor: hoveredRow === key ? "#b3d9ff" : (value.rejection_percent || 0) > 100 ? "#ffcccc" : "inherit" }}>
-    {value.forging_rejection || value.machining_rejection}
-  </TableCell>
-  <TableCell sx={{ padding: "1px", textAlign: "center", backgroundColor: hoveredRow === key ? "#b3d9ff" : (value.rejection_percent || 0) > 2 ? "#ffcccc" : "inherit" }}>
-    {value.rejection_percent || 0}%
-  </TableCell>
-
-  {/* Rejection Reasons Data */}
-  {(type === "machining" || type === "machining1" || type === "machining2" || type === "machining3")  &&
-    Object.entries(groupedReasons).map(([category, reasons]) => (
-      <>
-        {/* Rejection Reason Data */}
-        {reasons.map((reason) => (
-          <TableCell
-            key={reason}
-            sx={{
-              padding: "1px",
-              textAlign: "center",
-              backgroundColor: hoveredRow === key ? "#b3d9ff" : sectionColors[category], // Apply section color or hover color
-            }}
-          >
-            {value.rejection_reasons[reason] || 0}
-          </TableCell>
-        ))}
-
-        {/* Total Column Data */}
-        <TableCell
-          key={`total-${category}`}
-          sx={{
-            padding: "1px",
-            textAlign: "center",
-            backgroundColor: hoveredRow === key ? "#b3d9ff" : sectionColors[category], // Apply section color or hover color
-          }}
-        >
-          {categoryTotals[category] || 0}
-        </TableCell>
-
-        {/* Rejection % Column Data */}
-        <TableCell
-          key={`rejection-percent-${category}`}
-          sx={{
-            padding: "1px",
-            textAlign: "center",
-            backgroundColor: hoveredRow === key ? "#b3d9ff" : sectionColors[category], // Apply section color or hover color
-          }}
-        >
-          {categoryRejectionPercentages[category] || 0}%
-        </TableCell>
-      </>
-    ))}
-   {/* {(type === "machining" || type === "machining1")  */}
-  {/* Flat Rejection Reasons (for Forging table) */}
-  {(type !== "machining" && type !== "machining1" && type !== "machining2"&& type !== "machining3") &&
-  allRejectionReasons.map((reason) => (
-    <TableCell
-      key={reason}
-      sx={{
-        padding: "1px",
-        textAlign: "center",
-        backgroundColor: hoveredRow === key ? "#b3d9ff" : sectionColors.forging, // Apply forging color or hover color
-      }}
-    >
-      {value.rejection_reasons?.[reason] || 0} {/* Added optional chaining to avoid errors */}
-    </TableCell>
-  ))}
-
-</TableRow>
+                      key={key}
+                      onMouseEnter={() => setHoveredRow(key)}
+                      onMouseLeave={() => setHoveredRow(null)}
+                      sx={{
+                        backgroundColor: hoveredRow === key
+                          ? "#b3d9ff"
+                          : index % 2 === 0
+                          ? "#ffffff"
+                          : "#f9f9f9",
+                        transition: "background-color 0.3s ease",
+                        "&:hover": { backgroundColor: "#b3d9ff !important" },
+                      }}
+                    >
+                      {type === "forging" ? (
+                        <TableCell sx={{ padding: "1px", textAlign: "center", backgroundColor: hoveredRow === key ? "#b3d9ff" : (value.rejection_percent || 0) > 100 ? "#ffcccc" : "inherit" }}>
+                          {value.unique_lines?.join(", ") || "N/A"}
+                        </TableCell>
+                      ) : (
+                        <TableCell sx={{ padding: "1px", textAlign: "center", backgroundColor: hoveredRow === key ? "#b3d9ff" : (value.rejection_percent || 0) > 100 ? "#ffcccc" : "inherit" }}>
+                          {value.unique_machine_nos?.join(", ") || "N/A"}
+                        </TableCell>
+                      )}
+                      {type === "machining" && (
+                      <TableCell sx={{ padding: "1px", textAlign: "center" }}>
+                        {value.process || "N/A"}
+                      </TableCell>
+                      )}
+                      <TableCell sx={{ padding: "1px", textAlign: "center", backgroundColor: hoveredRow === key ? "#b3d9ff" : (value.rejection_percent || 0) > 100 ? "#ffcccc" : "inherit" }}>
+                        {key}
+                      </TableCell>
+                      <TableCell sx={{ padding: "1px", textAlign: "center", backgroundColor: hoveredRow === key ? "#b3d9ff" : (value.rejection_percent || 0) > 100 ? "#ffcccc" : "inherit" }}>
+                        {value.customer}
+                      </TableCell>
+                      <TableCell sx={{ padding: "1px", textAlign: "center", backgroundColor: hoveredRow === key ? "#b3d9ff" : (value.rejection_percent || 0) > 100 ? "#ffcccc" : "inherit" }}>
+                        {value.cost_per_piece}
+                      </TableCell>
+                      {type === "forging" && (
+                        <TableCell sx={{ padding: "1px", textAlign: "center", backgroundColor: hoveredRow === key ? "#b3d9ff" : (value.rejection_percent || 0) > 100 ? "#ffcccc" : "inherit" }}>
+                          {value.unique_formans?.join(", ") || "N/A"}
+                        </TableCell>
+                      )}
+                      <TableCell sx={{ padding: "1px", textAlign: "center", backgroundColor: hoveredRow === key ? "#b3d9ff" : (value.rejection_percent || 0) > 100 ? "#ffcccc" : "inherit" }}>
+                        {value.rejection_cost}
+                      </TableCell>
+                      <TableCell sx={{ padding: "1px", textAlign: "center", backgroundColor: hoveredRow === key ? "#b3d9ff" : (value.rejection_percent || 0) > 100 ? "#ffcccc" : "inherit" }}>
+                        {value.target_day}
+                      </TableCell>
+                      <TableCell sx={{ padding: "1px", textAlign: "center", backgroundColor: hoveredRow === key ? "#b3d9ff" : (value.rejection_percent || 0) > 100 ? "#ffcccc" : "inherit" }}>
+                        {value.production_day}
+                      </TableCell>
+                      <TableCell sx={{ padding: "1px", textAlign: "center", backgroundColor: hoveredRow === key ? "#b3d9ff" : (value.rejection_percent || 0) > 100 ? "#ffcccc" : "inherit" }}>
+                        {value.target_night}
+                      </TableCell>
+                      <TableCell sx={{ padding: "1px", textAlign: "center", backgroundColor: hoveredRow === key ? "#b3d9ff" : (value.rejection_percent || 0) > 100 ? "#ffcccc" : "inherit" }}>
+                        {value.production_night}
+                      </TableCell>
+                      {(type === "machining" || type === "machining1" || type === "machining2" || type === "forging") && (
+                        <TableCell
+                          sx={{
+                            padding: "1px",
+                            textAlign: "center",
+                            backgroundColor:
+                              hoveredRow === key
+                                ? "#b3d9ff"
+                                : (value.rejection_percent || 0) > 100
+                                ? "#ffcccc"
+                                : "inherit",
+                          }}
+                        >
+                          {typeof value.target === "number" ? value.target : "0"}
+                        </TableCell>
+                      )}
+                      <TableCell sx={{ padding: "1px", textAlign: "center", backgroundColor: hoveredRow === key ? "#b3d9ff" : (value.rejection_percent || 0) > 100 ? "#ffcccc" : "inherit" }}>
+                        {value.production}
+                      </TableCell>
+                      <TableCell sx={{ padding: "1px", textAlign: "center", backgroundColor: hoveredRow === key ? "#b3d9ff" : (value.rejection_percent || 0) > 100 ? "#ffcccc" : "inherit" }}>
+                        {value.forging_rejection || value.machining_rejection}
+                      </TableCell>
+                      <TableCell sx={{ padding: "1px", textAlign: "center", backgroundColor: hoveredRow === key ? "#b3d9ff" : (value.rejection_percent || 0) > 2 ? "#ffcccc" : "inherit" }}>
+                        {value.rejection_percent || 0}%
+                      </TableCell>
+                      {(type === "machining" || type === "machining1" || type === "machining2" || type === "machining3") &&
+                        Object.entries(groupedReasons).map(([category, reasons]) => (
+                          <>
+                            {reasons.map((reason) => (
+                              <TableCell
+                                key={reason}
+                                sx={{
+                                  padding: "1px",
+                                  textAlign: "center",
+                                  backgroundColor: hoveredRow === key ? "#b3d9ff" : sectionColors[category],
+                                }}
+                              >
+                                {value.rejection_reasons[reason] || 0}
+                              </TableCell>
+                            ))}
+                            <TableCell
+                              key={`total-${category}`}
+                              sx={{
+                                padding: "1px",
+                                textAlign: "center",
+                                backgroundColor: hoveredRow === key ? "#b3d9ff" : sectionColors[category],
+                              }}
+                            >
+                              {categoryTotals[category] || 0}
+                            </TableCell>
+                            <TableCell
+                              key={`rejection-percent-${category}`}
+                              sx={{
+                                padding: "1px",
+                                textAlign: "center",
+                                backgroundColor: hoveredRow === key ? "#b3d9ff" : sectionColors[category],
+                              }}
+                            >
+                              {categoryRejectionPercentages[category] || 0}%
+                            </TableCell>
+                          </>
+                        ))}
+                      {(type !== "machining" && type !== "machining1" && type !== "machining2" && type !== "machining3") &&
+                        allRejectionReasons.map((reason) => (
+                          <TableCell
+                            key={reason}
+                            sx={{
+                              padding: "1px",
+                              textAlign: "center",
+                              backgroundColor: hoveredRow === key ? "#b3d9ff" : sectionColors.forging,
+                            }}
+                          >
+                            {value.rejection_reasons?.[reason] || 0}
+                          </TableCell>
+                        ))}
+                    </TableRow>
                   );
                 })
               )}
             </TableBody>
+            <TableFooter>
+  <TableRow>
+    <TableCell colSpan={type === "forging" ? 5 : 5} sx={{ fontWeight: "bold", textAlign: "center" }}>
+      Total
+    </TableCell>
+    <TableCell sx={{ fontWeight: "bold", textAlign: "center" }}>
+      {footerSums.rejectionCost || 0}
+    </TableCell>
+    <TableCell sx={{ fontWeight: "bold", textAlign: "center" }}>
+      {footerSums.target_day || 0}
+    </TableCell>
+    <TableCell sx={{ fontWeight: "bold", textAlign: "center" }}>
+      {footerSums.production_day || 0}
+    </TableCell>
+    <TableCell sx={{ fontWeight: "bold", textAlign: "center" }}>
+      {footerSums.target_night || 0}
+    </TableCell>
+    <TableCell sx={{ fontWeight: "bold", textAlign: "center" }}>
+      {footerSums.production_night || 0}
+    </TableCell>
+    <TableCell sx={{ fontWeight: "bold", textAlign: "center" }}>
+      {footerSums.target || 0}
+    </TableCell>
+    <TableCell sx={{ fontWeight: "bold", textAlign: "center" }}>
+      {footerSums.production || 0}
+    </TableCell>
+    <TableCell sx={{ fontWeight: "bold", textAlign: "center" }}>
+      {footerSums.totalRejection || 0}
+    </TableCell>
+    <TableCell sx={{ fontWeight: "bold", textAlign: "center" }}>
+      {footerSums.rejectionPercent ? footerSums.rejectionPercent.toFixed(2) + "%" : "0.00%"}
+    </TableCell>
+    {type === "machining" && groupedReasons
+      ? Object.entries(groupedReasons).map(([category, reasons]) => (
+          <React.Fragment key={category}>
+            {reasons.map((reason) => (
+              <TableCell
+                key={reason}
+                sx={{ fontWeight: "bold", textAlign: "center" }}
+              >
+                {footerSums[reason] || 0}
+              </TableCell>
+            ))}
+            <TableCell
+              key={`total-${category}`}
+              sx={{ fontWeight: "bold", textAlign: "center" }}
+            >
+              {reasons.reduce((sum, reason) => sum + (footerSums[reason] || 0), 0)}
+            </TableCell>
+            <TableCell
+              key={`rejection-percent-${category}`}
+              sx={{ fontWeight: "bold", textAlign: "center" }}
+            >
+              {footerSums.production === 0
+                ? "0.00%"
+                : ((reasons.reduce((sum, reason) => sum + (footerSums[reason] || 0), 0) /
+                    footerSums.production) * 100).toFixed(2) + "%"}
+            </TableCell>
+          </React.Fragment>
+        ))
+      : allRejectionReasons.map((reason) => (
+          <TableCell
+            key={reason}
+            sx={{ fontWeight: "bold", textAlign: "center" }}
+          >
+            {footerSums[reason] || 0}
+          </TableCell>
+        ))}
+  </TableRow>
+</TableFooter>
+
+            
           </Table>
         </TableContainer>
       </>
     );
   };
+
+  const renderCombinedMachiningTable = () => {
+    // Collect data from all machining tables separately without merging
+    const combinedData = {
+        components: {}
+    };
+
+    const addComponents = (sourceData, source, process) => {
+        Object.entries(sourceData || {}).forEach(([key, value]) => {
+            if (value) {
+                // Ensure unique keys by appending the source name if needed
+                const uniqueKey = `${key} ${source}`;
+                combinedData.components[uniqueKey] = { ...value, source, process };
+            }
+        });
+    };
+
+    addComponents(data?.machining?.components, ".", "CNC");
+    addComponents(data?.machining1?.components, "..", "Broch");
+    addComponents(data?.machining2?.components, "-", "VMC");
+    addComponents(data?.machining3?.components, "_", "CF");
+
+    return renderTable("Combined Machining Data", combinedData, "machining");
+};
+
+
 
   return (
     <div className="p-2 grid gap-2 mt-24">
@@ -512,38 +604,7 @@ const Dashboard = () => {
         <Button variant="contained" onClick={fetchData}>Apply Filters</Button>
       </div>
 
-      <div className="grid grid-cols-8 gap-1">
-  {loading ? (
-    // Skeleton Loader for Cards
-    Array.from({ length: 8 }).map((_, index) => (
-      <Card key={index}>
-        <CardContent>
-          <Skeleton variant="text" width="100%" height={30} />
-        </CardContent>
-      </Card>
-    ))
-  ) : data ? (
-    // Actual Card Data when data is available
-    <>
-      <Card><CardContent>Total Forging Production: {data.forging?.total_production || 0} Pcs.</CardContent></Card>
-      <Card><CardContent>Total Forging Rejection: {data.forging?.total_rejection || 0} Pcs.</CardContent></Card>
-      <Card><CardContent>Forging Rejection Percent: {data.forging?.rejection_percent || 0}%</CardContent></Card>
-      <Card><CardContent>Forging Rejection Cost (rs): {data.forging?.total_rejection_cost || 0} Rs</CardContent></Card>
-      <Card><CardContent>Total Machining Production: {data.machining?.total_production || 0} Pcs.</CardContent></Card>
-      <Card><CardContent>Total Machining Rejection: {data.machining?.total_rejection || 0} Pcs.</CardContent></Card>
-      <Card><CardContent>Machining Rejection %: {data.machining?.rejection_percent || 0}%</CardContent></Card>
-      <Card><CardContent>Machining Rejection Cost (rs): {data.machining?.total_rejection_cost || 0} Rs</CardContent></Card>
-    </>
-  ) : (
-    // Show a message when no data is available
-    <Card className="col-span-8">
-      <CardContent className="text-center text-gray-500 font-semibold">
-        No Data Available
-      </CardContent>
-    </Card>
-  )}
-</div>
-
+  
 
       <TextField
         label="Search"
@@ -553,10 +614,7 @@ const Dashboard = () => {
       />
 
       {renderTable("Forging Data", data?.forging, "forging")}
-      {renderTable("Machining Data", data?.machining, "machining")}
-      {renderTable("Broching Data", data?.machining1, "machining1")}
-      {renderTable("VMC Data", data?.machining2, "machining2")}
-      {renderTable("CF Data", data?.machining3, "machining3")}
+      {renderCombinedMachiningTable()}
     </div>
   );
 };

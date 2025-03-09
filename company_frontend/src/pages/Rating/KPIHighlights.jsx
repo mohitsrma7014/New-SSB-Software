@@ -8,47 +8,44 @@ const KPIHighlights = ({ data = [] }) => {
     totalPieces,
     totalWeight,
     totalDispatched,
-    totalBalance,
     dispatchedTonnage,
-    remainingTonnage,
   } = useMemo(() => {
     return safeData.reduce(
       (totals, item) => {
         const pieces = Number(item.pices) || 0;
         const weight = Number.parseFloat(item.weight) || 0;
         const dispatched = Number(item.dispatched) || 0;
-        const balance = Number(item.balance) || 0;
         const slugWeight = Number.parseFloat(item.slug_weight) || 0;
 
         return {
           totalPieces: totals.totalPieces + pieces,
           totalWeight: totals.totalWeight + weight,
           totalDispatched: totals.totalDispatched + dispatched,
-          totalBalance: totals.totalBalance + balance,
           dispatchedTonnage: totals.dispatchedTonnage + dispatched * slugWeight,
-          remainingTonnage: totals.remainingTonnage + balance * slugWeight,
         };
       },
       {
         totalPieces: 0,
         totalWeight: 0,
         totalDispatched: 0,
-        totalBalance: 0,
         dispatchedTonnage: 0,
-        remainingTonnage: 0,
       }
     );
   }, [safeData]);
 
+  // Corrected calculations
+  const calculatedBalance = totalPieces - totalDispatched;
+  const calculatedRemainingTonnage = totalWeight - dispatchedTonnage;
+
   const weightInTons = (totalWeight / 1000).toFixed(2);
   const dispatchedTonnageInTons = (dispatchedTonnage / 1000).toFixed(2);
-  const remainingTonnageInTons = (remainingTonnage / 1000).toFixed(2);
+  const remainingTonnageInTons = (calculatedRemainingTonnage / 1000).toFixed(2);
   const deliveryRating = totalPieces > 0 ? ((totalDispatched / totalPieces) * 100).toFixed(2) : "0.00";
 
   const kpis = [
     { title: "Total Schedule", value: `${totalPieces.toLocaleString()} Pcs. / ${weightInTons} Tons` },
     { title: "Dispatched", value: `${totalDispatched.toLocaleString()} Pcs. / ${dispatchedTonnageInTons} Tons` },
-    { title: "Remaining ", value: `${totalBalance.toLocaleString()} Pcs. / ${remainingTonnageInTons} Tons` },
+    { title: "Remaining", value: `${calculatedBalance.toLocaleString()} Pcs. / ${remainingTonnageInTons} Tons` },
     { title: "Overall Delivery Rating", value: `${deliveryRating}%` },
   ];
 

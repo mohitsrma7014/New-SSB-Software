@@ -96,8 +96,8 @@ class SuggestionView(APIView):
         # Fetch suggestions based on the 'type' and 'value'
         if search_type == 'line':
             # Query Forging model to filter lines containing the search query
-            suggestions = marking.objects.filter(line__icontains=search_query).values('line').distinct()
-            return Response([entry['line'] for entry in suggestions])
+            suggestions = marking.objects.filter(operator__icontains=search_query).values('operator').distinct()
+            return Response([entry['operator'] for entry in suggestions])
 
         elif search_type == 'customer':
             # Query Forging model to filter customers containing the search query

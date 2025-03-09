@@ -151,7 +151,7 @@ const allMonths = orderedMonths.map(num => {
                     text: `<b>Target: ${targetValue}%</b>`, // Bold text
                     useHTML: true, // Allow HTML formatting
                     align: 'right',
-                    y: -55, // Move slightly up
+                    y: 15, // Move slightly up
                     style: {
                         color: 'red',
                         fontWeight: 'bold',
@@ -165,6 +165,7 @@ const allMonths = orderedMonths.map(num => {
         
         
           tooltip: {
+            enabled: false,
               shared: true,
               useHTML: true,
               backgroundColor: "rgba(255,255,255,0.95)",

@@ -255,6 +255,8 @@ class Order(models.Model):
     qty = models.IntegerField()
     po_date = models.DateField()
     delivery_date = models.DateField(blank=True, null=True)
+    heat_no = models.CharField(max_length=100, blank=True, null=True)
+    po_number = models.CharField(max_length=100, blank=True, null=True)
     actual_delivery_date = models.DateField(blank=True, null=True)
     verified_by = models.CharField(max_length=100, blank=True, null=True)
     delay_days = models.IntegerField(blank=True, null=True)

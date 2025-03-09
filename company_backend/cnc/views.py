@@ -948,3 +948,99 @@ def get_fy_trends(request, year=None):
             current_date = current_date.replace(month=current_date.month + 1)
 
     return JsonResponse(response_data, safe=False)
+
+
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from datetime import datetime, timedelta
+import pandas as pd
+
+
+class MergedSheetAPI(APIView):
+    def get(self, request):
+        # Get query parameters
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+
+        # Convert string dates to datetime objects
+        if start_date:
+            start_date = datetime.strptime(start_date, '%Y-%m-%d')
+        if end_date:
+            end_date = datetime.strptime(end_date, '%Y-%m-%d')
+
+        # Default to yesterday if no date range is provided
+        if not start_date:
+            start_date = datetime.now() - timedelta(days=1)
+        if not end_date:
+            end_date = start_date
+
+        # Fetch data from all three models within the date range
+        machining_data = machining.objects.filter(date__range=[start_date, end_date])
+        visual_data = Visual.objects.filter(date__range=[start_date, end_date])
+        fi_data = Fi.objects.filter(date__range=[start_date, end_date])
+
+        # Convert querysets to DataFrames
+        machining_df = pd.DataFrame(list(machining_data.values()))
+        visual_df = pd.DataFrame(list(visual_data.values()))
+        fi_df = pd.DataFrame(list(fi_data.values()))
+
+        # Debugging: Print columns
+        print("Machining Columns:", machining_df.columns)
+        print("Visual Columns:", visual_df.columns)
+        print("Fi Columns:", fi_df.columns)
+
+        # Ensure all DataFrames have the required columns
+        required_columns = ['component', 'shift']
+        for df in [machining_df, visual_df, fi_df]:
+            for col in required_columns:
+                if col not in df.columns:
+                    df[col] = None  # or df[col] = 0, depending on your use case
+
+        # Check for empty DataFrames
+        if machining_df.empty or visual_df.empty or fi_df.empty:
+            return Response({"error": "No data found for the given date range"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Merge DataFrames on 'component' and 'date'
+        merged_df = pd.merge(machining_df, visual_df, on=['component', 'shift'], how='outer', suffixes=('_machining', '_visual'))
+        merged_df = pd.merge(merged_df, fi_df, on=['component', 'shift'], how='outer', suffixes=('', '_fi'))
+
+        # Fill NaN values with 0 for production and target
+        merged_df['production_machining'] = merged_df['production_machining'].fillna(0)
+        merged_df['target_machining'] = merged_df['target_machining'].fillna(0)
+        merged_df['production_visual'] = merged_df['production_visual'].fillna(0)
+        merged_df['target_visual'] = merged_df['target_visual'].fillna(0)
+        merged_df['production'] = merged_df['production'].fillna(0)
+        merged_df['target'] = merged_df['target'].fillna(0)
+
+        # Calculate total production and target
+        merged_df['total_production'] = merged_df['production_machining'] + merged_df['production_visual'] + merged_df['production']
+        merged_df['total_target'] = merged_df['target_machining'] + merged_df['target_visual'] + merged_df['target']
+
+        # Calculate rejection reasons and percentages
+        rejection_columns = ['cnc_height', 'cnc_od', 'cnc_bore', 'cnc_groove', 'cnc_dent',
+                            'forging_height', 'forging_od', 'forging_bore', 'forging_crack', 'forging_dent',
+                            'pre_mc_height', 'pre_mc_od', 'pre_mc_bore']
+
+        for col in rejection_columns:
+            merged_df[col] = merged_df[col + '_machining'].fillna(0) + merged_df[col + '_visual'].fillna(0) + merged_df[col].fillna(0)
+            merged_df[col + '_percent'] = (merged_df[col] / merged_df['total_production']) * 100
+
+        # Calculate total rejection and percentage
+        merged_df['total_rejection'] = merged_df[rejection_columns].sum(axis=1)
+        merged_df['total_rejection_percent'] = (merged_df['total_rejection'] / merged_df['total_production']) * 100
+
+        # Select and order the final columns
+        final_columns = ['component', 'shift', 'total_production', 'total_target',
+                        'cnc_height', 'cnc_od', 'cnc_bore', 'cnc_groove', 'cnc_dent',
+                        'forging_height', 'forging_od', 'forging_bore', 'forging_crack', 'forging_dent',
+                        'pre_mc_height', 'pre_mc_od', 'pre_mc_bore',
+                        'total_rejection', 'total_rejection_percent']
+
+        final_df = merged_df[final_columns]
+
+        # Convert DataFrame to JSON
+        result = final_df.to_dict(orient='records')
+
+        return Response(result, status=status.HTTP_200_OK)

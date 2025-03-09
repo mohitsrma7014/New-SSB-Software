@@ -21,7 +21,7 @@ const marking_form = () => {
   const [rowSuggestions, setRowSuggestions] = useState([]); // To store suggestions for each row
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const shiftOptions = ["DAY", "NIGHT"]; // Dropdown options for shift
-  const lineOptions = ["Kamal", "Anil", "Anoop","Sandeep","Sorav","Chetan","Mahaveer","Deendyal","Satish","Shyamu","Keshav","Guddu","Manoj","Vinod"]; // Dropdown options for line
+  const lineOptions = ["Kamal", "Anil", "Anoop","Sandeep","Sorav","Chetan","Mahaveer","Deendyal","Satish","Shyamu","Keshav","Guddu","Manoj","Vinod","Aniket"]; // Dropdown options for line
   const formanOptions = ["Jitendra", "Ram", "Shambhu","Rajkumar"]; // Dropdown options for forman
   const lineInchargeOptions = ["Santosh", "Devendra", "Rahul","Neeraj","Somveer","Lal Chand"];
 

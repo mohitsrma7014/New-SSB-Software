@@ -32,7 +32,7 @@ const BulkAddFormheattreatment = () => {
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const shiftOptions = ["DAY", "NIGHT"]; // Dropdown options for shift
   const lineOptions = ["Pusher Furnace-01", "Pusher Furnace-02", "Annealing Furnace", "Coneyor Type Normalizing Furnace(N1)", "Coneyor Type Normalizing Furnace(N2)", "Coneyor Type Normalizing Furnace(N3)", "Silver-EX", "Lopan"]; // Dropdown options for line
-  const formanOptions = ["Manish Sharma", "Jitendra Kumar Chodhary"]; // Dropdown options for forman
+  const formanOptions = [ "Jitendra Kumar Chodhary"]; // Dropdown options for forman
   const lineInchargeOptions = ["Normalize", "Iso Thermal", "H&T","Annelling"];
 
 
