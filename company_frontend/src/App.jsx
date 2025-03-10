@@ -72,6 +72,8 @@ import BatchTrackingTable4 from './pages/Shot_blast/BatchTrackingTable';
 import Forgingrejection from './pages/rejection/Forging';
 
 import ForgingrDashboard from './pages/rejection/Dashboard';
+import CncDashboard from './pages/cnc/Dashboardc';
+
 
 import Cnc_home from './pages/Cnc/Cnc_home';
 import Cnc_production1 from './pages/Cnc/cnc_production';
@@ -126,6 +128,7 @@ import CreateOrder from "./pages/Materialorder/CreateOrder";
 import { Orders } from "./pages/Materialorder/Orders";
 
 import UpdateDelivery from "./pages/Materialorder/UpdateDelivery";
+import Dom_home from "./pages/Domarea/Dom_home";
 
 
 const App = () => {
@@ -145,6 +148,7 @@ const App = () => {
     visual: Visual_home,
     dispatch: dispatch_home,
     qa: Quality_home,
+    dom:Dom_home,
   };
   
   // Check for token validity in localStorage
@@ -282,6 +286,7 @@ const App = () => {
       <Route path="/CreateOrder/" element={<CreateOrder />} />
       <Route path="/Orders/" element={<Orders />} />
       <Route path="/UpdateDelivery/" element={<UpdateDelivery />} />
+      <Route path="/CncDashboard/" element={<CncDashboard />} />
       
     </Routes>
   );

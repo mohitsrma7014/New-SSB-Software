@@ -114,9 +114,22 @@ const BulkAddFormcnc = () => {
         setLoadingSuggestions(false);
     }
 };
-
-  
-  
+const fetchTargetFromAPI = async (component, setup, index) => {
+  try {
+    const response = await axios.get(
+      "http://192.168.1.199:8001/raw_material/get_operation_target/",
+      { params: { component, setup } }
+    );
+    const { target } = response.data;
+    setRows((prevRows) => {
+      const updatedRows = [...prevRows];
+      updatedRows[index].target = target;
+      return updatedRows;
+    });
+  } catch (error) {
+    console.error("Error fetching target from API:", error);
+  }
+};
 
   const fetchPartDetails = async (batch_number, index) => {
     try {
@@ -210,6 +223,7 @@ const BulkAddFormcnc = () => {
       fetchComponentSuggestionss(value, index);
     }
     
+    
     const updatedRows = [...rows];
     updatedRows[index][field] = value;
     setRows(updatedRows);
@@ -218,7 +232,16 @@ const BulkAddFormcnc = () => {
     if (field === "batch_number" && value) {
       fetchComponentSuggestions(value, index);
     }
+    if (field === "setup") {
+      if (value === "I" || value === "II") {
+        const component = updatedRows[index].component;
+        if (component) {
+          fetchTargetFromAPI(component, value, index);
+        }
+      }
+    }
   };
+  
   
   const handleSelectSuggestion = (index, suggestion) => {
     // Set the batch number from the selected suggestion
@@ -483,11 +506,12 @@ const BulkAddFormcnc = () => {
                           </select>
                         ) : (
                           <input
-                            type="text"
-                            value={row[field]}
-                            onChange={(e) => handleRowChange(index, field, e.target.value)}
-                            className="w-full px-1 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
+                          type="text"
+                          value={row[field]}
+                          onChange={(e) => handleRowChange(index, field, e.target.value)}
+                          className="w-full px-1 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          readOnly={field === "target" && (row.setup === "I" || row.setup === "II")}
+                        />
                         )}
                         {field === "batch_number" && rowSuggestions[index] && rowSuggestions[index].length > 0 && (
                           <ul className="absolute bg-white border border-gray-300 mt-1 w-[170px] max-h-40 overflow-y-auto z-10">

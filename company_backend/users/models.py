@@ -22,6 +22,7 @@ class CustomUser(AbstractUser):
         ('Finance', 'Finance'),
         ('Marketing', 'Marketing'),
         ('DepartmentPage','DepartmentPage'),
+        ('Dom','Dom'),
     ], default='DepartmentPage')
 
     def __str__(self):

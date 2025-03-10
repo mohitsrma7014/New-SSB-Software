@@ -21,6 +21,7 @@ urlpatterns = [
     path('api/balance-after-hold/', BalanceAfterHold.as_view(), name='balance_after_hold'),
     path('create-blockmt/', views.create_blockmt, name='create-blockmt'),
     path('get-part-details/', views.get_part_details, name='get_part_details'),
+    path('get_operation_target/', views.get_operation_target, name='get_operation_target'),
     path('get-part-details1/', views.get_part_details1, name='get_part_details1'),
     path('get_part_detailsforging/', views.get_part_detailsforging, name='get_part_detailsforging'),
     path('get_part_details3/', views.get_part_details3, name='get_part_details3'),
@@ -51,4 +52,6 @@ urlpatterns = [
     path('api/orders/', order_list, name='orders-list'),
     path('api/orders/<int:pk>/', order_detail, name='order-detail'),
     path('api/orders/<int:pk>/update-delivery/', update_actual_delivery, name='update-actual-delivery'),
+
+     path('masterlist/<int:pk>/history/', MasterlistHistoryView.as_view(), name='masterlist-history'),
 ]

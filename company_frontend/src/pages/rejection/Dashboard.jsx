@@ -134,46 +134,46 @@ const Dashboard = () => {
               {type === "machining" ? (
                 <>
                   <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
-                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 100, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
                       Cnc Machine
                     </TableCell>
-                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 100, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
                       Process
                     </TableCell>
-                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 100, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
                       Component
                     </TableCell>
-                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 100, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
                       Customer
                     </TableCell>
-                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 100, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
                       Cost/pic.
                     </TableCell>
-                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 100, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
                       Rejection Cost
                     </TableCell>
-                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 100, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
                       Target Day
                     </TableCell>
-                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 100, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
                       Production Day
                     </TableCell>
-                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 100, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
                       Target Night
                     </TableCell>
-                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 100, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
                       Production Night
                     </TableCell>
-                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 100, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
                       Total Target
                     </TableCell>
-                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 100, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
                       Total Production
                     </TableCell>
-                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 100, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
                       Total Rejection
                     </TableCell>
-                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 100, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
                       Rejection %
                     </TableCell>
                     {Object.entries(groupedReasons).map(([category, reasons]) => (
@@ -183,7 +183,7 @@ const Dashboard = () => {
                         sx={{
                           position: "sticky",
                           top: 0,
-                          zIndex: 1200,
+                          zIndex: 100,
                           padding: "1px",
                           fontWeight: "bold",
                           fontSize: ".9rem",
@@ -207,7 +207,7 @@ const Dashboard = () => {
                             sx={{
                               position: "sticky",
                               top: 0,
-                              zIndex: 1200,
+                              zIndex: 100,
                               padding: "1px",
                               fontWeight: "bold",
                               fontSize: ".9rem",
@@ -223,7 +223,7 @@ const Dashboard = () => {
                           sx={{
                             position: "sticky",
                             top: 0,
-                            zIndex: 1200,
+                            zIndex: 100,
                             padding: "1px",
                             fontWeight: "bold",
                             fontSize: ".9rem",
@@ -238,7 +238,7 @@ const Dashboard = () => {
                           sx={{
                             position: "sticky",
                             top: 0,
-                            zIndex: 1200,
+                            zIndex: 100,
                             padding: "1px",
                             fontWeight: "bold",
                             fontSize: ".9rem",
@@ -255,53 +255,53 @@ const Dashboard = () => {
               ) : (
                 <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
                   {type === "forging" ? (
-                    <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                    <TableCell sx={{ position: "sticky", top: 0, zIndex: 100, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
                       Lines
                     </TableCell>
                   ) : (
-                    <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                    <TableCell sx={{ position: "sticky", top: 0, zIndex: 100, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
                       Cnc Machine
                     </TableCell>
                   )}
-                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 100, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
                     Component
                   </TableCell>
-                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 100, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
                     Customer
                   </TableCell>
-                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 100, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
                     Cost/pic.
                   </TableCell>
                   {type === "forging" && (
-                    <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                    <TableCell sx={{ position: "sticky", top: 0, zIndex: 100, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
                       Forman
                     </TableCell>
                   )}
-                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 100, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
                     Rejection Cost
                   </TableCell>
-                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 100, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
                     Target Day
                   </TableCell>
-                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 100, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
                     Production Day
                   </TableCell>
-                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 100, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
                     Target Night
                   </TableCell>
-                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 100, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
                     Production Night 
                   </TableCell>
-                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 100, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
                     Total Target
                   </TableCell>
-                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 100, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
                     total Production
                   </TableCell>
-                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 100, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
                     Total Rejection
                   </TableCell>
-                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 1200, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
+                  <TableCell sx={{ position: "sticky", top: 0, zIndex: 100, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
                     Rejection %
                   </TableCell>
                   {allRejectionReasons.map((reason) => (
@@ -310,7 +310,7 @@ const Dashboard = () => {
                       sx={{
                         padding: "1px",
                         top: 0,
-                        zIndex: 1200,
+                        zIndex: 100,
                         position: "sticky",
                         fontWeight: "bold",
                         fontSize: ".9rem",

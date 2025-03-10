@@ -478,6 +478,37 @@ def get_part_details1(request):
     else:
         return JsonResponse({'error': 'No matching part found'}, status=404)
 
+def get_operation_target(request):
+    component = request.GET.get('component', '').strip().lower()
+    setup = request.GET.get('setup', '').strip().upper()  # Setup should be 'I' or 'II'
+    
+    # Fetch the masterlist entry for the given component
+    try:
+        masterlist_entry = Masterlist.objects.get(component__iexact=component)
+    except Masterlist.DoesNotExist:
+        return JsonResponse({'error': 'Component not found'}, status=404)
+    
+    # Determine the target based on setup type
+    if setup == 'I':
+        target = masterlist_entry.op_10_target
+    elif setup == 'II':
+        target = masterlist_entry.op_20_target
+    else:
+        return JsonResponse({'error': 'Invalid setup value. Use I or II.'}, status=400)
+    
+    # Prepare response data
+    data = {
+        'component': masterlist_entry.component,
+        'customer': masterlist_entry.customer,
+        'drawing_number': masterlist_entry.drawing_number,
+        'setup': setup,
+        'target': target if target is not None else 'No target available'
+    }
+    
+    return JsonResponse(data)
+
+
+
 
 
 from rest_framework import status
@@ -2149,3 +2180,23 @@ class OrderViewSet(viewsets.ModelViewSet):
             'delay_days': order.delay_days,
             'heat_no': order.heat_no
         })
+    
+
+from .serializers import MasterlistHistorySerializer
+
+class MasterlistHistoryView(APIView):
+    def get(self, request, pk):
+        try:
+            # Get the Masterlist instance
+            masterlist = Masterlist.objects.get(pk=pk)
+            
+            # Get the history records for this instance
+            history = masterlist.history.all()
+            
+            # Serialize the history records
+            serializer = MasterlistHistorySerializer(history, many=True)
+            
+            # Return the serialized data
+            return Response(serializer.data)
+        except Masterlist.DoesNotExist:
+            return Response({"error": "Masterlist not found"}, status=404)

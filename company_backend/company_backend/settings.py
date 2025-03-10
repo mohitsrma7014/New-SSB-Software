@@ -44,7 +44,7 @@ INSTALLED_APPS = [
     'users',           # Custom app
     'rest_framework_simplejwt', 
     'sslserver','forging','import_export','heat_treatment','shot_blast','pre_mc','cnc','marking','visual','fi',
-    'raw_material','costumer_complaint','calibration','other'
+    'raw_material','costumer_complaint','calibration','other','simple_history',
 ]
 
 MIDDLEWARE = [

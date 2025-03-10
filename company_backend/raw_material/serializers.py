@@ -108,3 +108,11 @@ class OrderSerializer(serializers.ModelSerializer):
         model = Order
         fields = '__all__'
         read_only_fields = ('delivery_date', 'delay_days')
+
+
+from .models import Masterlist
+
+class MasterlistHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Masterlist.history.model  # Access the history model
+        fields = '__all__'  # Include all fields in the history model

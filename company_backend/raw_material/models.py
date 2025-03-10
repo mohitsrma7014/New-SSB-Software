@@ -188,6 +188,7 @@ class rmreciveinbatch(models.Model):
     
 
 from django.db import models
+from simple_history.models import HistoricalRecords
 
 class Masterlist(models.Model):
     component = models.CharField(max_length=100)
@@ -202,7 +203,13 @@ class Masterlist(models.Model):
     ring_weight = models.DecimalField(max_digits=10, decimal_places=2)
     cost = models.DecimalField(max_digits=10, decimal_places=2)
     component_cycle_time = models.IntegerField()
+    op_10_time = models.IntegerField(blank=True, null=True)
+    op_10_target = models.IntegerField(blank=True, null=True)
+    op_20_time = models.IntegerField(blank=True, null=True)
+    op_20_target = models.IntegerField(blank=True, null=True)
+    cnc_target_remark = models.CharField(max_length=500,blank=True, null=True)
     
+    history = HistoricalRecords()
 
     def __str__(self):
         return f"{self.component} - {self.customer} - {self.drawing_number}"
