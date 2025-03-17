@@ -6,10 +6,15 @@ import './Admin.css';
 import { Line } from 'react-chartjs-2';
 import { Chart as ChartJS } from 'chart.js/auto';
 import  UserGreetingBox  from '../components/Add/UserGreetingBox';
+import  MonthlyGraph  from '../components/Add/MonthlyGraph';
+import  MonthlyReceivingTrend  from '../components/Add/MonthlyReceivingTrend';
+import  MonthlyConsumptionGraph  from '../components/Add/MonthlyConsumptionGraph';
+import  MonthlyConsumptionTrend  from '../components/Add/MonthlyConsumptionTrend';
+
 
 
 const Rm = () => {
-  const { departmentName } = useParams(); // Get department name from the URL
+  const { departmentName } = useParams(); // Get department name from the URL 
   const navigate = useNavigate();
   const [userData, setUserData] = useState(null);
   const [error, setError] = useState('');
@@ -50,17 +55,64 @@ const Rm = () => {
 
   
   return (
-    <div className="admin-container">
+    <div className="admin-container" style={{ display: 'flex', flexDirection: 'row' }}>
       <Sidebar />
-      <div className="content">
-        
-      <div className="App">
-      <UserGreetingBox />
-    </div>
+      <div className="content" style={{ display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', marginBottom: '0' }}>
+            {/* Left Side: Greeting Box and Production Comparison */}
+            <div style={{ display: 'flex', flexDirection: 'column', width: '500px' }}>
+                <div className="App" style={{ marginBottom: '0' }}>
+                    <UserGreetingBox />
+                </div>
+                <div className="App">
+                  <MonthlyReceivingTrend />
+                </div>
+            </div>
 
-       
-        
-      </div>
+            {/* Right Side: Both Graphs taking 50% each */}
+            <div style={{ display: 'flex', flexDirection: 'row', flex: 1 ,gap: '10px',marginTop: '6rem' }}>
+                <div style={{ flex: 1}}>
+                    <div className="App">
+                    <MonthlyGraph />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', marginBottom: '0' }}>
+            {/* Left Side: Greeting Box and Production Comparison */}
+            <div style={{ display: 'flex', flexDirection: 'column', width: '500px' }}>
+                <div className="App">
+                  <MonthlyConsumptionTrend />
+                </div>
+            </div>
+
+            {/* Right Side: Both Graphs taking 50% each */}
+            <div style={{ display: 'flex', flexDirection: 'row', flex: 1 ,gap: '10px'}}>
+                <div style={{ flex: 1}}>
+                    <div className="App">
+                    <MonthlyConsumptionGraph />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {/* New Row Below Production Comparison: Dispatch Tonnage Charts */}
+        <div className="content" style={{ display: 'flex', flexDirection: 'column' }}>
+            {/* <div className="App">
+            <MonthlyConsumptionGraph />
+            
+            </div> */}
+            {/* Right Side: Both Graphs taking 50% each */}
+            {/* <div style={{ display: 'flex', flexDirection: 'row', flex: 1 ,gap: '10px'}}>
+                <div style={{ flex: 1}}>
+                    <div className="App">
+                    <MonthlyConsumptionTrend />
+                    </div>
+                </div>
+            </div> */}
+        </div>
+    </div>
     </div>
   );
 };

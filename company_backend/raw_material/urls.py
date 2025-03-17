@@ -54,4 +54,10 @@ urlpatterns = [
     path('api/orders/<int:pk>/update-delivery/', update_actual_delivery, name='update-actual-delivery'),
 
      path('masterlist/<int:pk>/history/', MasterlistHistoryView.as_view(), name='masterlist-history'),
+     path('available-material/', get_remaining_schedule, name='available-material'),
+     path('api/rm-and-schedule/', get_rm_and_schedule, name='get_rm_and_schedule'),
+     path('api/monthly-graph/', MonthlyGraphAPIView.as_view(), name='monthly-graph'),
+     path('api/MonthlyConsumptionGraphAPIView/', MonthlyConsumptionGraphAPIView.as_view(), name='MonthlyConsumptionGraphAPIView'),
+     path('api/monthly_receiving_trend/', monthly_receiving_trend, name='monthly_receiving_trend'),
+     path('api/monthly_consumption_trend/', monthly_consumption_trend, name='monthly_consumption_trend'),
 ]

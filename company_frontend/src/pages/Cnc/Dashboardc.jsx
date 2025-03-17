@@ -170,12 +170,7 @@ const Dashboard = () => {
                     <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 100, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
                       Total Production
                     </TableCell>
-                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 100, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
-                      Total Rejection
-                    </TableCell>
-                    <TableCell rowSpan={2} sx={{ position: "sticky", top: 0, zIndex: 100, padding: "1px", fontWeight: "bold", fontSize: ".9rem", textAlign: "center" }}>
-                      Rejection %
-                    </TableCell>
+                    
                     {Object.entries(groupedReasons).map(([category, reasons]) => (
                       <TableCell
                         key={category}
@@ -430,12 +425,16 @@ const Dashboard = () => {
                       <TableCell sx={{ padding: "1px", textAlign: "center", backgroundColor: hoveredRow === key ? "#b3d9ff" : (value.rejection_percent || 0) > 100 ? "#ffcccc" : "inherit" }}>
                         {value.production}
                       </TableCell>
+                      {type === "forging" && (
                       <TableCell sx={{ padding: "1px", textAlign: "center", backgroundColor: hoveredRow === key ? "#b3d9ff" : (value.rejection_percent || 0) > 100 ? "#ffcccc" : "inherit" }}>
                         {value.forging_rejection || value.machining_rejection}
                       </TableCell>
+                        )}
+                         {type === "forging" && (
                       <TableCell sx={{ padding: "1px", textAlign: "center", backgroundColor: hoveredRow === key ? "#b3d9ff" : (value.rejection_percent || 0) > 2 ? "#ffcccc" : "inherit" }}>
                         {value.rejection_percent || 0}%
                       </TableCell>
+                        )}
                       {(type === "machining" || type === "machining1" || type === "machining2" || type === "machining3") &&
                         Object.entries(groupedReasons).map(([category, reasons]) => (
                           <>
@@ -462,15 +461,20 @@ const Dashboard = () => {
                               {categoryTotals[category] || 0}
                             </TableCell>
                             <TableCell
-                              key={`rejection-percent-${category}`}
-                              sx={{
-                                padding: "1px",
-                                textAlign: "center",
-                                backgroundColor: hoveredRow === key ? "#b3d9ff" : sectionColors[category],
-                              }}
-                            >
-                              {categoryRejectionPercentages[category] || 0}%
-                            </TableCell>
+                                key={`rejection-percent-${category}`}
+                                sx={{
+                                  padding: "1px",
+                                  textAlign: "center",
+                                  backgroundColor:
+                                    hoveredRow === key
+                                      ? "#b3d9ff" // Highlight on hover
+                                      : (parseFloat(categoryRejectionPercentages[category]) || 0) > 2 // Check if rejection percentage > 2%
+                                      ? "#ffcccc" // Red background if > 2%
+                                      : sectionColors[category], // Default background color
+                                }}
+                              >
+                                {categoryRejectionPercentages[category] || 0}%
+                              </TableCell>
                           </>
                         ))}
                       {(type !== "machining" && type !== "machining1" && type !== "machining2" && type !== "machining3") &&
@@ -517,12 +521,16 @@ const Dashboard = () => {
     <TableCell sx={{ fontWeight: "bold", textAlign: "center" }}>
       {footerSums.production || 0}
     </TableCell>
+    {type === "forging" && (
     <TableCell sx={{ fontWeight: "bold", textAlign: "center" }}>
       {footerSums.totalRejection || 0}
     </TableCell>
+    )}
+     {type === "forging" && (
     <TableCell sx={{ fontWeight: "bold", textAlign: "center" }}>
       {footerSums.rejectionPercent ? footerSums.rejectionPercent.toFixed(2) + "%" : "0.00%"}
     </TableCell>
+     )}
     {type === "machining" && groupedReasons
       ? Object.entries(groupedReasons).map(([category, reasons]) => (
           <React.Fragment key={category}>
@@ -579,14 +587,14 @@ const Dashboard = () => {
         Object.entries(sourceData || {}).forEach(([key, value]) => {
             if (value) {
                 // Ensure unique keys by appending the source name if needed
-                const uniqueKey = `${key} ${source}`;
+                const uniqueKey = `${key}${source}`;
                 combinedData.components[uniqueKey] = { ...value, source, process };
             }
         });
     };
 
-    addComponents(data?.machining?.components, ".", "CNC");
-    addComponents(data?.machining1?.components, "..", "Broch");
+    addComponents(data?.machining?.components, "", "CNC");
+    addComponents(data?.machining1?.components, ".", "Broch");
     addComponents(data?.machining2?.components, "-", "VMC");
     addComponents(data?.machining3?.components, "_", "CF");
 

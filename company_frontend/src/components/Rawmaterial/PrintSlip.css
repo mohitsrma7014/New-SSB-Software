@@ -6,10 +6,10 @@
     border: 4px solid red;
   }
   .status-hold {
-    border: 4px solid rgb(234, 255, 0);
+    border: 4px solid rgb(0, 0, 0);
   }
   .status-under-inspection {
-    border: 4px solid rgb(0, 0, 0);
+    border: 4px solid rgb(251, 255, 0);
   }
   
   .container2 {
@@ -129,11 +129,11 @@
       color: red;
     }
     .status-hold {
-      color: rgb(232, 221, 107);
+      color:rgb(5, 5, 5);
     }
   
     .status-under-inspection {
-      color: rgb(5, 5, 5);
+      color: rgb(255, 234, 0); 
     }
   }
   

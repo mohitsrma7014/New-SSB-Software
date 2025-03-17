@@ -48,6 +48,7 @@ import BulkAddForm from './pages/Forging/BulkAddForm';
 import ForgingAnalyticsPage from './pages/Forging/AnalyticsPage';
 import Forging_home from './pages/Forging/Forging_home';
 import BatchTrackingTable1 from './pages/Forging/BatchTrackingTable';
+import AvailableMaterials from './components/Rawmaterial/AvailableMaterials';
 
 import Pre_mc_production1 from './pages/Pre_mc/Pre_mc_production';
 import Pre_mc_home from './pages/Pre_mc/Pre_mc_home';
@@ -287,6 +288,7 @@ const App = () => {
       <Route path="/Orders/" element={<Orders />} />
       <Route path="/UpdateDelivery/" element={<UpdateDelivery />} />
       <Route path="/CncDashboard/" element={<CncDashboard />} />
+      <Route path="/AvailableMaterials/" element={<AvailableMaterials />} />
       
     </Routes>
   );

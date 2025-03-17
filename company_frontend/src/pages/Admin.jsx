@@ -7,6 +7,10 @@ import  ProductionTrendChart  from '../components/Add/ProductionTrendChart';
 import  DispatchTonnageCharts  from '../components/Add/DispatchTonnageCharts';
 
 import  RejectionTrendChart  from '../components/Add/RejectionTrendChart';
+import  MonthlyGraph  from '../components/Add/MonthlyGraph';
+import  MonthlyReceivingTrend  from '../components/Add/MonthlyReceivingTrend';
+import  MonthlyConsumptionGraph  from '../components/Add/MonthlyConsumptionGraph';
+import  MonthlyConsumptionTrend  from '../components/Add/MonthlyConsumptionTrend';
 import api from '../api'; // Adjust the path to your API utilities file
 import { Line } from 'react-chartjs-2';
 import { Chart as ChartJS } from 'chart.js/auto';
@@ -92,7 +96,42 @@ return (
                 <DispatchTonnageCharts />
             </div>
         </div>
+        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', marginBottom: '0' }}>
+            {/* Left Side: Greeting Box and Production Comparison */}
+            <div style={{ display: 'flex', flexDirection: 'column', width: '500px'}}>
+                <div className="App">
+                  <MonthlyReceivingTrend />
+                </div>
+            </div>
+
+            {/* Right Side: Both Graphs taking 50% each */}
+            <div style={{ display: 'flex', flexDirection: 'row', flex: 1 ,gap: '10px'}}>
+                <div style={{ flex: 1}}>
+                    <div className="App">
+                    <MonthlyGraph />
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', marginBottom: '0' }}>
+            {/* Left Side: Greeting Box and Production Comparison */}
+            <div style={{ display: 'flex', flexDirection: 'column', width: '500px' }}>
+                <div className="App">
+                  <MonthlyConsumptionTrend />
+                </div>
+            </div>
+
+            {/* Right Side: Both Graphs taking 50% each */}
+            <div style={{ display: 'flex', flexDirection: 'row', flex: 1 ,gap: '10px'}}>
+                <div style={{ flex: 1}}>
+                    <div className="App">
+                    <MonthlyConsumptionGraph />
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
+    
 </div>
 
 

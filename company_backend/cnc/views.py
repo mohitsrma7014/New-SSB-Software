@@ -235,11 +235,33 @@ def get_target_details7(request):
 
 from rest_framework import viewsets
 from .serializers import MachiningSerializer
+from rest_framework.pagination import PageNumberPagination
+
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 10  # Number of items per page
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+from django_filters import rest_framework as filters
+from rest_framework import viewsets
+
+class MachiningFilter(filters.FilterSet):
+    date = filters.CharFilter(field_name="date", lookup_expr="icontains")
+    batch_number = filters.CharFilter(field_name="batch_number", lookup_expr="icontains")
+    shift = filters.CharFilter(field_name="shift", lookup_expr="icontains")
+    component = filters.CharFilter(field_name="component", lookup_expr="icontains")
+    verified_by = filters.CharFilter(field_name="verified_by", lookup_expr="icontains")
+
+    class Meta:
+        model = machining
+        fields = ["date", "batch_number", "shift", "component", "verified_by"]
 
 class MachiningViewSet(viewsets.ModelViewSet):
     queryset = machining.objects.all()
     serializer_class = MachiningSerializer
-
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [filters.DjangoFilterBackend]
+    filterset_class = MachiningFilter
 
 from rest_framework.views import APIView
 from rest_framework.response import Response

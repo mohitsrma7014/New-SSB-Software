@@ -7,8 +7,8 @@ const DataTable = ({ data }) => {
     () => [
       { Header: "Component", accessor: "component" },
       { Header: "Customer", accessor: "customer" },
-      { Header: "Pieces", accessor: "pices" },
-      { Header: "Required RM", accessor: "weight" },
+      { Header: "Pieces", accessor: "total_schedule_pices" },
+      { Header: "Required RM", accessor: "total_schedule_weight" },
       { Header: "Dispatched", accessor: "dispatched" },
       { Header: "Balance", accessor: "balance" },
       { Header: "Location", accessor: "location" },

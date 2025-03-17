@@ -580,10 +580,10 @@ class ScheduleAPIView(APIView):
             return Response({"message": "No data available for the selected month."}, status=200)
 
         # Group schedules by component and aggregate pices
-        schedule_grouped = defaultdict(lambda: {"total_pices": 0, "schedule": None})
+        schedule_grouped = defaultdict(lambda: {"total_pices": 0, "total_weight": 0, "schedule": None})
         for schedule in all_schedules:
             schedule_grouped[schedule.component]["total_pices"] += schedule.pices
-            # Always overwrite the schedule with the latest for the component
+            schedule_grouped[schedule.component]["total_weight"] += schedule.weight
             schedule_grouped[schedule.component]["schedule"] = schedule
 
         # Group blockmt data by component and aggregate pices
@@ -600,6 +600,7 @@ class ScheduleAPIView(APIView):
         results = []
         for component, data in schedule_grouped.items():
             total_schedule_pices = data["total_pices"]
+            total_schedule_weight = data["total_weight"]
             schedule = data["schedule"]
             blockmt_pices = blockmt_grouped.get(component, 0)
             dispatched = dispatch_grouped.get(component, 0)
@@ -609,6 +610,7 @@ class ScheduleAPIView(APIView):
             schedule_data.update({
                 "component": component,
                 "total_schedule_pices": total_schedule_pices,
+                "total_schedule_weight": total_schedule_weight,
                 "month": month_filter,
                 "blockmt_pices": blockmt_pices,
                 "dispatched": dispatched,
@@ -2200,3 +2202,400 @@ class MasterlistHistoryView(APIView):
             return Response(serializer.data)
         except Masterlist.DoesNotExist:
             return Response({"error": "Masterlist not found"}, status=404)
+        
+
+
+from django.utils import timezone
+from datetime import timedelta
+from django.db.models import Sum
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from .models import Schedule, Blockmt, RawMaterial
+class AvailableMaterialView(APIView):
+    def get(self, request):
+        today = timezone.now().date()
+        # Get the first date of the current month
+        first_date_of_month = today.replace(day=1)
+        next_month = today + timedelta(days=30)
+
+        # Filter RawMaterial to get approved and under inspection materials
+        raw_materials = RawMaterial.objects.filter(
+            approval_status__in=['Approved', 'Under Inspection']
+        ).values('grade', 'dia', 'supplier', 'customer', 'heatno').annotate(
+            total_weight=Sum('weight')
+        )
+
+        # Normalize RawMaterial values to lowercase
+        raw_materials = [
+            {k: v.lower() if isinstance(v, str) else v for k, v in rm.items()}
+            for rm in raw_materials
+        ]
+
+        # Filter Blockmt and group by grade, dia, heatno, supplier, customer
+        blocked_materials = Blockmt.objects.values('grade','component', 'dia', 'heatno', 'supplier', 'customer').annotate(
+            total_weight=Sum('weight')
+        )
+
+        # Normalize Blockmt values to lowercase
+        blocked_materials = [
+            {k: v.lower() if isinstance(v, str) else v for k, v in bm.items()}
+            for bm in blocked_materials
+        ]
+
+        # Calculate available RM
+        available_materials = []
+        for rm in raw_materials:
+            for bm in blocked_materials:
+                if (rm['grade'] == bm['grade'] and
+                    rm['dia'] == bm['dia'] and
+                    rm['heatno'] == bm['heatno'] and
+                    rm['supplier'] == bm['supplier'] and
+                    rm['customer'] == bm['customer']):
+                    available_weight = rm['total_weight'] - bm['total_weight']
+                    available_materials.append({
+                        'grade': rm['grade'],
+                        'dia': rm['dia'],
+                        'supplier': rm['supplier'],
+                        'customer': rm['customer'],
+                        'heatno': rm['heatno'],
+                        'available_weight': available_weight
+                    })
+
+        # Filter Schedule for the next 30 days and group by component, customer, grade, dia
+        schedules = Schedule.objects.filter(
+            date1__range=[first_date_of_month, next_month]
+        ).values('component', 'customer', 'grade', 'dia').annotate(
+            total_weight=Sum('weight')
+        )
+
+        # Normalize Schedule values to lowercase
+        schedules = [
+            {k: v.lower() if isinstance(v, str) else v for k, v in schedule.items()}
+            for schedule in schedules
+        ]
+
+        # Prepare the response data
+        response_data = []
+        for schedule in schedules:
+            # Find available material for this schedule
+            available_for_schedule = next(
+                (rm for rm in available_materials
+                 if rm['grade'] == schedule['grade'] and
+                 rm['dia'] == schedule['dia'] and
+                 rm['customer'] == schedule['customer']),
+                None
+            )
+
+            if available_for_schedule:
+                available_weight = available_for_schedule['available_weight']
+                scheduled_weight = schedule['total_weight']
+                required_weight = max(scheduled_weight - available_weight, 0)  # Ensure non-negative
+
+                response_data.append({
+                    'grade': schedule['grade'],
+                    'dia': schedule['dia'],
+                    'customer': schedule['customer'],
+                    'component': schedule['component'],
+                    'available_weight': available_weight,
+                    'scheduled_weight': scheduled_weight,
+                    'required_weight': required_weight
+                })
+
+        return Response(response_data)
+    
+from datetime import datetime, timedelta
+from django.db.models import Sum, F
+from django.http import JsonResponse
+from django.db import models
+
+from django.db.models import Sum
+from django.utils.timezone import now
+from datetime import datetime
+
+def get_remaining_schedule(request=None):
+    current_month = now().month
+    current_year = now().year
+    
+    # Filter data for the current month and year using date1 in Schedule
+    schedules = Schedule.objects.filter(
+        date1__startswith=f"{current_year}-{str(current_month).zfill(2)}"
+    )
+    
+    # Filter data for the current month and year using block_mt_id in Blockmt
+    blockmts = Blockmt.objects.filter(
+        block_mt_id__regex=f".*-{current_year}{str(current_month).zfill(2)}\\d{{2}}-.*"
+    )
+    
+    # Convert fields to lowercase and group by required fields
+    schedules_agg = schedules.values(
+        'component', 'customer', 'grade', 'dia'
+    ).annotate(
+        total_pices=Sum('pices'),
+        total_weight=Sum('weight')
+    )
+    
+    blockmts_agg = blockmts.values(
+        'component', 'customer', 'grade', 'dia'
+    ).annotate(
+        total_pices=Sum('pices'),
+        total_weight=Sum('weight')
+    )
+    
+    # Convert querysets to dictionaries for easy lookup
+    blockmts_dict = {
+        (b['component'].lower(), b['customer'].lower(), b['grade'].lower(), b['dia'].lower()): {
+            'total_pices': b['total_pices'],
+            'total_weight': b['total_weight']
+        }
+        for b in blockmts_agg
+    }
+    
+    remaining_schedules = []
+    
+    for s in schedules_agg:
+        key = (s['component'].lower(), s['customer'].lower(), s['grade'].lower(), s['dia'].lower())
+        blocked_pices = blockmts_dict.get(key, {}).get('total_pices', 0)
+        blocked_weight = blockmts_dict.get(key, {}).get('total_weight', 0)
+        
+        remaining_pices = s['total_pices'] - blocked_pices
+        remaining_weight = s['total_weight'] - blocked_weight
+        
+        remaining_schedules.append({
+            'component': s['component'].lower(),
+            'customer': s['customer'].lower(),
+            'grade': s['grade'].lower(),
+            'dia': s['dia'].lower(),
+            'remaining_pices': remaining_pices,
+            'remaining_weight': remaining_weight
+        })
+    
+    return remaining_schedules
+
+
+from collections import defaultdict
+from decimal import Decimal
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+
+def group_and_sum_rm(rm_data):
+    grouped = defaultdict(Decimal)  # Initialize with Decimal
+    for entry in rm_data:
+        key = (entry['customer'], entry['grade'], entry['dia'])
+        grouped[key] += Decimal(str(entry['weight_diff']))  # Ensure weight_diff is treated as Decimal
+    return grouped
+
+def group_and_sum_schedule(schedule_data):
+    grouped = defaultdict(Decimal)  # Initialize with Decimal
+    for entry in schedule_data:
+        key = (entry['customer'], entry['grade'], entry['dia'])
+        grouped[key] += Decimal(str(entry['remaining_weight']))  # Ensure remaining_weight is treated as Decimal
+    return grouped
+
+def merge_data(rm_grouped, schedule_grouped):
+    merged_data = []
+    for key, rm_weight in rm_grouped.items():
+        customer, grade, dia = key
+        schedule_weight = schedule_grouped.get(key, Decimal(0))  # Default to Decimal(0)
+        merged_data.append({
+            'customer': customer,
+            'grade': grade,
+            'dia': dia,
+            'available_rm': float(rm_weight),  # Convert to float for JSON serialization
+            'required_rm': float(schedule_weight)  # Convert to float for JSON serialization
+        })
+    return merged_data
+
+@require_http_methods(["GET"])
+def get_rm_and_schedule(request):
+    # Get data from the helper functions
+    rm_data = balance_after_hold_for_autofill(request)
+    schedule_data = get_remaining_schedule(request)
+    print(f'rm_data{rm_data}')
+    print(f'schedule_data{schedule_data}')
+
+    # Group and sum the data
+    rm_grouped = group_and_sum_rm(rm_data)
+    schedule_grouped = group_and_sum_schedule(schedule_data)
+
+    # Merge the data
+    merged_data = merge_data(rm_grouped, schedule_grouped)
+
+    # Return the merged data as a JSON response
+    return JsonResponse(merged_data, safe=False)
+
+from django.utils.timezone import now
+from django.db.models import Sum, F, Value,IntegerField,CharField
+from django.db.models.functions import ExtractMonth, ExtractYear, Concat
+from django.db import models
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from .models import RawMaterial
+from rest_framework import status
+from django.db.models.functions import Substr
+
+class MonthlyGraphAPIView(APIView):
+    def get(self, request, *args, **kwargs):
+        # Get the month and year from request parameters, default to current month/year
+        month = int(request.GET.get("month", now().month))
+        year = int(request.GET.get("year", now().year))
+
+        # Filter data for the given month and year
+        raw_materials = RawMaterial.objects.annotate(
+            record_month=ExtractMonth("date"),
+            record_year=ExtractYear("date")
+        ).filter(record_month=month, record_year=year)
+
+        # First graph: Group by supplier, sum the weight, and convert to tonnage
+        supplier_data = (
+            raw_materials.values("supplier")
+            .annotate(total_weight=Sum("weight"))
+            .annotate(total_tonnage=F("total_weight") / 1000)  # Convert kg to tonnes
+            .values("supplier", "total_tonnage")
+        )
+
+        # Second graph: Group by grade and dia, sum the weight, and convert to tonnage
+        grade_dia_data = (
+            raw_materials.annotate(
+                grade_dia=Concat(F("grade"), Value("-"), F("dia"), output_field=models.CharField())  # Fix: Explicit output field
+            )
+            .values("grade_dia")
+            .annotate(total_weight=Sum("weight"))
+            .annotate(total_tonnage=F("total_weight") / 1000)  # Convert kg to tonnes
+            .values("grade_dia", "total_tonnage")
+        )
+
+        response_data = {
+            "supplier_graph": list(supplier_data),
+            "grade_dia_graph": list(grade_dia_data),
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
+from datetime import datetime, timedelta
+from django.utils.timezone import now
+from django.db.models.functions import TruncMonth
+from django.db.models import Sum
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from .models import RawMaterial
+def get_last_12_months():
+    """Generate a list of the last 12 months in 'YYYY-MM' format, ensuring correctness."""
+    today = datetime.today()
+    months = []
+
+    for i in range(12):
+        year = (today.year - (1 if today.month - i <= 0 else 0))
+        month = (today.month - i) % 12 or 12  # Ensure December remains 12, not 0
+        months.append(f"{year}-{month:02d}")
+
+    months.reverse()  # Ensure correct chronological order
+    return months
+
+
+@api_view(['GET'])
+def monthly_receiving_trend(request):
+    last_12_months = get_last_12_months()
+    
+    # Query data and aggregate weight per month
+    data = (
+        RawMaterial.objects
+        .filter(date__gte=now() - timedelta(days=365))
+        .annotate(month=TruncMonth('date'))
+        .values('month')
+        .annotate(total_weight=Sum('weight'))
+        .order_by('month')
+    )
+    
+    # Convert query results to dictionary
+    data_dict = {entry['month'].strftime('%Y-%m'): entry['total_weight'] / 1000 for entry in data}
+    
+    # Prepare response with missing months filled as 0
+    response_data = [
+        {'month': month, 'tonnage': data_dict.get(month, 0)}
+        for month in last_12_months
+    ]
+    
+    return Response(response_data)
+
+class MonthlyConsumptionGraphAPIView(APIView):
+    def get(self, request, *args, **kwargs):
+        # Get the month and year from request parameters, default to current month/year
+        month = int(request.GET.get("month", now().month))
+        year = int(request.GET.get("year", now().year))
+
+        print(f"Filtering for Year: {year}, Month: {month}")  # Debugging
+
+        # Extract year and month from block_mt_id (Format: FP-YYYYMMDD-XX-XX)
+        raw_materials = Blockmt.objects.annotate(
+            record_year=Substr("block_mt_id", 4, 4),   # Extract YYYY (2025)
+            record_month=Substr("block_mt_id", 8, 2)   # Extract MM (03)
+        ).filter(
+            record_year=str(year),  # Convert year to string
+            record_month=str(month).zfill(2)  # Convert month to string & ensure it's '03' not '3'
+        )
+
+
+        if not raw_materials.exists():
+            return Response({"message": "No records found for the given month/year"}, status=status.HTTP_404_NOT_FOUND)
+
+        # First graph: Group by supplier, sum the weight, and convert to tonnage
+        supplier_data = (
+            raw_materials.values("supplier")
+            .annotate(total_weight=Sum("weight"))
+            .annotate(total_tonnage=F("total_weight") / 1000)  # Convert kg to tonnes
+            .values("supplier", "total_tonnage")
+        )
+
+        # Second graph: Group by grade and dia, sum the weight, and convert to tonnage
+        grade_dia_data = (
+            raw_materials.annotate(
+                grade_dia=Concat(F("grade"), Value("-"), F("dia"), output_field=CharField())
+            )
+            .values("grade_dia")
+            .annotate(total_weight=Sum("weight"))
+            .annotate(total_tonnage=F("total_weight") / 1000)  # Convert kg to tonnes
+            .values("grade_dia", "total_tonnage")
+        )
+
+        response_data = {
+            "supplier_graph": list(supplier_data),
+            "grade_dia_graph": list(grade_dia_data),
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
+    
+@api_view(['GET'])
+def monthly_consumption_trend(request):
+    last_12_months = get_last_12_months()
+
+    # Extracting Year and Month as String (Avoiding Cast)
+    data = (
+        Blockmt.objects
+        .annotate(
+            record_year=Substr("block_mt_id", 4, 4),  # Extract YYYY as string
+            record_month=Substr("block_mt_id", 8, 2)  # Extract MM as string
+        )
+        .filter(
+            record_year__gte=str(datetime.now().year - 1)  # Compare as string
+        )
+        .annotate(
+            formatted_month=Concat(
+                F("record_year"), Value("-"), F("record_month"), output_field=CharField()
+            )
+        )
+        .values("formatted_month")
+        .annotate(total_weight=Sum("weight"))
+        .order_by("formatted_month")
+    )
+
+    # Convert query results to dictionary
+    data_dict = {entry["formatted_month"]: entry["total_weight"] / 1000 for entry in data}
+
+    # Prepare response with missing months filled as 0
+    response_data = [
+        {"month": month, "tonnage": data_dict.get(month, 0)}
+        for month in last_12_months
+    ]
+
+    return Response(response_data)

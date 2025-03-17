@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import ForgingForm from "./Cnc_edit_form";
 import { Sidebar } from './Sidebar';
-// Loading Spinner Component
+import { debounce } from "lodash";
+
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center h-full">
     <div className="spinner-border animate-spin inline-block w-12 h-12 border-4 border-solid border-blue-600 border-t-transparent rounded-full" role="status">
@@ -14,7 +15,9 @@ const LoadingSpinner = () => (
 const Cnc_list = () => {
   const [forgings, setForgings] = useState([]);
   const [editing, setEditing] = useState(null);
-  const [loading, setLoading] = useState(true); // Loading state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     date: "",
     batch_number: "",
@@ -23,72 +26,64 @@ const Cnc_list = () => {
     verified_by: "",
   });
 
-  // Fetch records
-  const fetchForgings = async () => {
+  const fetchForgings = async (page = 1, size = 10) => {
     try {
-      setLoading(true); // Set loading state true during fetch
-      const response = await axios.get("http://192.168.1.199:8001/cnc/MachiningViewSet/");
-      setForgings(response.data);
+      setLoading(true);
+      const params = {
+        page,
+        page_size: size,
+        ...filters,
+      };
+      const response = await axios.get("http://192.168.1.199:8001/cnc/MachiningViewSet/", { params });
+      setForgings(response.data.results);
     } catch (error) {
       console.error("Error fetching forgings:", error);
     } finally {
-      setLoading(false); // Set loading state false after fetching
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchForgings();
-  }, []);
+    fetchForgings(currentPage, pageSize);
+  }, [currentPage, pageSize, filters]);
 
-  // Delete a record
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+  };
+
+  const handlePageSizeChange = (e) => {
+    setPageSize(Number(e.target.value));
+    setCurrentPage(1);
+  };
+
   const deleteForging = async (id) => {
     try {
       await axios.delete(`http://192.168.1.199:8001/cnc/MachiningViewSet/${id}/`);
-      fetchForgings(); // Re-fetch after deletion
+      fetchForgings(currentPage, pageSize);
     } catch (error) {
       console.error("Error deleting the record:", error);
     }
   };
 
-  // Set a record for editing
   const startEditing = (forging) => {
     setEditing(forging);
   };
 
-  // Reset editing form
   const resetEditing = () => {
     setEditing(null);
-    fetchForgings(); // Ensure fresh data is fetched when you close the form
+    fetchForgings(currentPage, pageSize);
   };
 
-  // Filter function
-  const applyFilters = (forging) => {
-    const { date, batch_number, shift, component, verified_by } = filters;
-    return (
-      (date ? forging.date.includes(date) : true) &&
-      (batch_number ? forging.batch_number.includes(batch_number) : true) &&
-      (shift ? forging.shift.includes(shift) : true) &&
-      (component ? forging.component.includes(component) : true) &&
-      (verified_by ? forging.verified_by.includes(verified_by) : true)
-    );
-  };
-
-  // Sort forgings by date in descending order
-  const sortedForgings = forgings
-    .filter(applyFilters)
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
-
-  // Handle filter changes
-  const handleFilterChange = (e) => {
+  const handleFilterChange = debounce((e) => {
     const { name, value } = e.target;
     setFilters((prevFilters) => ({
       ...prevFilters,
       [name]: value,
     }));
-  };
+  }, 300);
 
   return (
-    <div className="w-full p-6 mt-20" >
+    <div className="w-full p-6 mt-20">
       <Sidebar />
       <h1 className="text-3xl font-bold mb-6">CNC Records</h1>
 
@@ -99,7 +94,6 @@ const Cnc_list = () => {
             type="text"
             name="date"
             placeholder="Filter by Date"
-            value={filters.date}
             onChange={handleFilterChange}
             className="w-1/5 p-2 border border-gray-300 rounded-md"
           />
@@ -107,7 +101,6 @@ const Cnc_list = () => {
             type="text"
             name="batch_number"
             placeholder="Filter by Batch Number"
-            value={filters.batch_number}
             onChange={handleFilterChange}
             className="w-1/5 p-2 border border-gray-300 rounded-md"
           />
@@ -115,16 +108,13 @@ const Cnc_list = () => {
             type="text"
             name="shift"
             placeholder="Filter by shift"
-            value={filters.shift}
             onChange={handleFilterChange}
             className="w-1/5 p-2 border border-gray-300 rounded-md"
           />
-          
           <input
             type="text"
             name="component"
             placeholder="Filter by Component"
-            value={filters.component}
             onChange={handleFilterChange}
             className="w-1/5 p-2 border border-gray-300 rounded-md"
           />
@@ -132,7 +122,6 @@ const Cnc_list = () => {
             type="text"
             name="verified_by"
             placeholder="Filter by Verified By"
-            value={filters.verified_by}
             onChange={handleFilterChange}
             className="w-1/5 p-2 border border-gray-300 rounded-md"
           />
@@ -158,7 +147,7 @@ const Cnc_list = () => {
               </tr>
             </thead>
             <tbody>
-              {sortedForgings.map((forging) => (
+              {forgings.map((forging) => (
                 <tr key={forging.id} className="border-t border-gray-200">
                   <td className="p-3">{forging.id}</td>
                   <td className="p-3">{forging.date}</td>
@@ -191,6 +180,26 @@ const Cnc_list = () => {
       {editing !== null && (
         <ForgingForm forging={editing} onClose={resetEditing} />
       )}
+
+      {/* Pagination Controls */}
+      <div className="flex justify-between items-center mt-4">
+        <div>
+          <select value={pageSize} onChange={handlePageSizeChange}>
+            <option value={10}>10 per page</option>
+            <option value={20}>20 per page</option>
+            <option value={50}>50 per page</option>
+          </select>
+        </div>
+        <div>
+          <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}>
+            Previous
+          </button>
+          <span className="mx-4">Page {currentPage}</span>
+          <button onClick={() => handlePageChange(currentPage + 1)}>
+            Next
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

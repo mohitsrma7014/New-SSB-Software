@@ -24,6 +24,7 @@
     "highcharts": "^12.1.2",
     "highcharts-react-official": "^3.2.1",
     "jquery": "^3.7.1",
+    "lodash": "^4.17.21",
     "lodash.debounce": "^4.0.8",
     "lucide-react": "^0.469.0",
     "moment": "^2.30.1",

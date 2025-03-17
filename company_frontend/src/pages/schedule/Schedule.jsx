@@ -217,7 +217,7 @@ const Schedule = () => {
                   {schedule.dispatched}
                 </td>
                 <td className="p-2 border-b">{schedule.balance}</td>
-                <td className="p-2 border-b">{schedule.weight} kg</td>
+                <td className="p-2 border-b">{schedule.total_schedule_weight} kg</td>
                 <td className="p-2 border-b">
                   {new Date(schedule.created_at).toLocaleString()}
                 </td>
