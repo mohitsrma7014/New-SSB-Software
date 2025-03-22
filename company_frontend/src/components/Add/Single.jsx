@@ -7,6 +7,7 @@ import MaterialTypeForm from "./MaterialTypeForm";
 import EntityList from "./EntityList";
 import { FaSyncAlt } from 'react-icons/fa'; // Icon for reload
 import { Sidebar } from '../Rawmaterial/Sidebar';
+import  DashboardHeader  from '../Rawmaterial/DashboardHeader';
 
 const Single = () => {
   // State variable to trigger re-fetching the list
@@ -18,13 +19,15 @@ const Single = () => {
   };
 
   return (
-    <div className="App bg-gray-50 min-h-screen p-6">
-         <Sidebar /> 
-      {/* Container for forms and lists with reduced top margin */}
-      <div className="w-full mt-16"> {/* Changed mt-32 to mt-16 to reduce the top margin */}
+    <div className="App bg-gray-50 min-h-screen flex">
+      <Sidebar />
+      <div className="flex-1 flex flex-col">
+        <DashboardHeader />
+        {/* Main content area */}
+        <div className="flex-1 p-6 mt-12 ml-60"> {/* Adjust margin-top (mt) and margin-left (ml) based on your header and sidebar width */}
         
         {/* Container for forms and lists with grid layout */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
           {/* Supplier Form */}
           <div className="card bg-white p-2 rounded-lg shadow-lg">
             <SupplierForm reloadData={reloadData} />
@@ -32,25 +35,25 @@ const Single = () => {
           </div>
 
           {/* Grade Form */}
-          <div className="card bg-white p-6 rounded-lg shadow-lg">
+          <div className="card bg-white p-2 rounded-lg shadow-lg">
             <GradeForm reloadData={reloadData} />
             <EntityList endpoint="grades" title="Grades" reload={reload} />
           </div>
 
           {/* Customer Form */}
-          <div className="card bg-white p-6 rounded-lg shadow-lg">
+          <div className="card bg-white p-2 rounded-lg shadow-lg">
             <CustomerForm reloadData={reloadData} />
             <EntityList endpoint="customers" title="Customers" reload={reload} />
           </div>
 
           {/* Type of Material Form */}
-          <div className="card bg-white p-6 rounded-lg shadow-lg">
+          <div className="card bg-white p-2 rounded-lg shadow-lg">
             <TypeOfMaterialForm reloadData={reloadData} />
             <EntityList endpoint="types_of_material" title="Location" reload={reload} />
           </div>
 
           {/* Material Type Form */}
-          <div className="card bg-white p-6 rounded-lg shadow-lg">
+          <div className="card bg-white p-2 rounded-lg shadow-lg">
             <MaterialTypeForm reloadData={reloadData} />
             <EntityList endpoint="material_types" title="Material Types" reload={reload} />
           </div>
@@ -65,6 +68,7 @@ const Single = () => {
             <FaSyncAlt className="text-lg animate-spin" />
             <span>Reload Data</span>
           </button>
+        </div>
         </div>
       </div>
     </div>

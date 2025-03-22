@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import Highcharts from "highcharts";
 import HighchartsReact from "highcharts-react-official";
 import { FaChartLine, FaCalendarAlt } from "react-icons/fa";
-import { Sidebar } from '../../components/AdminComponents/Sidebar';
+import { Sidebar } from '../../components/Rawmaterial/Sidebar';
+import DashboardHeader from '../../components/Rawmaterial/DashboardHeader';
 
 const categories = ["total_production", "total_rejection", "rejection_cost", "rejection_percentage"];
 const targetValues = {
@@ -251,23 +252,15 @@ const allMonths = orderedMonths.map(num => {
   
 
     return (
-        <div className="p-2 bg-gray-100 min-h-screen">
-                 <Sidebar />
-           
-           <div className="flex justify-between items-center mt-24 mb-2 p-3 bg-white shadow-lg rounded-2xl border border-gray-200">
-            <div className="flex items-center space-x-3">
-                <FaCalendarAlt className="text-blue-600 text-2xl" />
-                <select
-                    className="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-                    value={year}
-                    onChange={(e) => setYear(e.target.value)}
-                >
-                    {yearOptions.map((y) => (
-                        <option key={y} value={y}>{y}</option>
-                    ))}
-                </select>
-            </div>
-            <h1 className="text-2xl font-bold text-center text-gray-800">YEARLY TRENDS DASHBOARD</h1>
+        <div className="App bg-gray-50 min-h-screen flex">
+        <Sidebar />
+        <div className="flex-1 flex flex-col">
+          <DashboardHeader />
+          {/* Main content area */}
+          <div className="flex-1 p-6 mt-12 ml-60 max-w-[calc(100vw-240px)] overflow-x-auto">
+          <h1 className="text-2xl font-bold text-center text-gray-800">YEARLY TRENDS DASHBOARD</h1>
+
+        
             <div className="flex items-center space-x-3">
                 <FaChartLine className="text-blue-600 text-2xl" />
                 <div className="flex space-x-2">
@@ -280,15 +273,26 @@ const allMonths = orderedMonths.map(num => {
                             {cat.replace(/_/g, " ").toUpperCase()}
                         </button>
                     ))}
+                    <FaCalendarAlt className="text-blue-600 text-2xl" />
+                <select
+                    className="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    value={year}
+                    onChange={(e) => setYear(e.target.value)}
+                >
+                    {yearOptions.map((y) => (
+                        <option key={y} value={y}>{y}</option>
+                    ))}
+                </select>
                 </div>
             </div>
         </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-1 ml-[260px]">
                 <HighchartsReact highcharts={Highcharts} options={generateOptions(selectedCategory, "forging")} />
                 <HighchartsReact highcharts={Highcharts} options={generateOptions(selectedCategory, "pre_mc")} />
                 <HighchartsReact highcharts={Highcharts} options={generateOptions(selectedCategory, "cnc")} />
                 <HighchartsReact highcharts={Highcharts} options={generateOptions(selectedCategory, "overall")} />
             </div>
+        </div>
         </div>
     );
 };

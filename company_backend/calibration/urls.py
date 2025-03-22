@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import ComplaintListCreateView, ComplaintDetailView, ComplaintHistoryView,ComplaintListCreateViewR
+from .views import ComplaintListCreateView, ComplaintDetailView, ComplaintHistoryView,ComplaintListCreateViewR,get_all_complaints_for_notifications
 from .views import GenerateUIDView, IDListView,update_status
 
 urlpatterns = [
@@ -10,4 +10,5 @@ urlpatterns = [
     path('generate-uid/', GenerateUIDView.as_view(), name='generate-uid'),
     path('id-list/', IDListView.as_view(), name='id-list'),
     path('update-status/<int:id>/', update_status, name='update-status'),
+    path('api/complaints/notifications/', get_all_complaints_for_notifications, name='complaint-notifications'),
 ]

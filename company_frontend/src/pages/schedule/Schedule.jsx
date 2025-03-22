@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Sidebar } from '../../components/AdminComponents/Sidebar';
+import { Sidebar } from '../../components/Rawmaterial/Sidebar';
+import DashboardHeader from '../../components/Rawmaterial/DashboardHeader';
 import BlockmtForm from '../../components/Rawmaterial/BlockmtForm1';
 
 const Schedule = () => {
@@ -82,12 +83,13 @@ const Schedule = () => {
   }, [selectedYear, selectedMonth]);
 
   return (
-    <div className="p-8 bg-gray-100 min-h-screen">
-      <Sidebar />
-      <h1 className="text-2xl font-bold mb-6 text-left">Schedule</h1>
-
-      {/* Filters and Search */}
-      {/* Filters and Search */}
+    <div className="App bg-gray-50 min-h-screen flex">
+    <Sidebar />
+    <div className="flex-1 flex flex-col">
+      <DashboardHeader />
+      {/* Main content area */}
+      <div className="flex-1 p-6 mt-12 ml-60 max-w-[calc(100vw-240px)] overflow-x-auto">
+   
 <div className="w-1/2 flex items-center justify-between mb-6 p-4 bg-white border border-gray-300 rounded-md">
   {/* Year Selector */}
   <div className="flex items-center space-x-1">
@@ -237,15 +239,16 @@ const Schedule = () => {
       </table>
       {isFormVisible && (
   <div className="fixed inset-0 z-50 flex justify-center items-center bg-black bg-opacity-50">
-    {/* Form Component */}
-    <div className="relative w-full h-full">
+    {/* Form Container */}
+    <div className="relative bg-white rounded-lg shadow-lg w-[1200px] h-[700px]">
       {/* Close Button */}
       <button
         onClick={closeForm}
-        className="absolute top-4 right-4 z-50 text-white text-xl hover:text-gray-300"
+        className="absolute top-4 right-4 z-50 text-black text-2xl hover:text-gray-700"
       >
-        &#x2715; {/* Unicode character for the close icon */}
+        &#x2715;
       </button>
+      {/* Form Component */}
       <BlockmtForm schedule={selectedSchedule} onClose={closeForm} />
     </div>
   </div>
@@ -255,6 +258,8 @@ const Schedule = () => {
 
 
 
+    </div>
+    </div>
     </div>
   );
 };

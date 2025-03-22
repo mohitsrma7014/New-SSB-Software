@@ -171,7 +171,6 @@ const BlockmtForm1 = ({ schedule, onClose }) => {
 
   return (
     <div className="page-container">
-      <Sidebar />  {/* Move Sidebar outside the form container */}
       <div className="form-container">
         <form onSubmit={handleSubmit} className="blockmt-form">
           <h2>Production Planning</h2>

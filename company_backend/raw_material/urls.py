@@ -60,4 +60,8 @@ urlpatterns = [
      path('api/MonthlyConsumptionGraphAPIView/', MonthlyConsumptionGraphAPIView.as_view(), name='MonthlyConsumptionGraphAPIView'),
      path('api/monthly_receiving_trend/', monthly_receiving_trend, name='monthly_receiving_trend'),
      path('api/monthly_consumption_trend/', monthly_consumption_trend, name='monthly_consumption_trend'),
+
+     path('api/purchase-orders/', CreatePurchaseOrder.as_view(), name='create-po'),
+     path('api/purchase-orders/<str:po_number>/', RetrievePurchaseOrder.as_view(), name='retrieve-po'),
+     path('api/purchase-orders/<str:po_number>/pdf/', GeneratePDF.as_view(), name='generate-pdf'),
 ]

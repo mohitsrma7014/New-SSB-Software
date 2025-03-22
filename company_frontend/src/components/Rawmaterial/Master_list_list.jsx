@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import ForgingForm from "../../pages/Master_list/Master_list_edit_form";
 import { Sidebar } from './Sidebar';
-
+import DashboardHeader from './DashboardHeader';
 // Loading Spinner Component
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center h-full">
@@ -89,8 +89,13 @@ const Master_list_list = () => {
   };
 
   return (
-    <div className="w-full p-2 mt-20" >
-      <Sidebar />
+    <div className="App bg-gray-50 min-h-screen flex">
+    <Sidebar />
+    <div className="flex-1 flex flex-col">
+      <DashboardHeader />
+      {/* Main content area */}
+      <div className="flex-1 p-6 mt-12 ml-60 max-w-[calc(100vw-240px)] overflow-x-auto">
+ 
       <h1 className="text-3xl font-bold mb-2">Master List Records</h1>
 
       {/* Filter Section */}
@@ -188,6 +193,8 @@ const Master_list_list = () => {
       {editing !== null && (
         <ForgingForm forging={editing} onClose={resetEditing} />
       )}
+    </div>
+    </div>
     </div>
   );
 };

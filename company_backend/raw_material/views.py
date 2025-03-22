@@ -7,17 +7,22 @@ from .models import RawMaterial,Blockmt,BatchTracking,rmreciveinbatch,Masterlist
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework import status
-from rest_framework.response import Response
 from .serializers import RawMaterialSerializer,BatchSerializer
 import pandas as pd
 from decimal import Decimal
 import json
+from rest_framework import generics
 from urllib.parse import quote
 from decimal import Decimal
 from django_pandas.io import read_frame
 from django.http import JsonResponse
 from rest_framework.views import APIView
 from django.shortcuts import render, redirect, get_object_or_404
+from rest_framework.decorators import api_view
+from .models import Supplier, Grade, Customer, TypeOfMaterial, MaterialType
+from rest_framework import status
+from rest_framework.generics import ListAPIView, RetrieveUpdateAPIView
+
 # Import the function at the top of your views.py file
 
 @api_view(['POST'])
@@ -39,9 +44,6 @@ def create_raw_material(request):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-from rest_framework import generics
-from .models import RawMaterial
-from .serializers import RawMaterialSerializer
 
 class RawMaterialListCreateView(generics.ListCreateAPIView):
     queryset = RawMaterial.objects.all()
@@ -51,9 +53,6 @@ class RawMaterialListCreateView(generics.ListCreateAPIView):
         instance = serializer.save()
         instance.save()
 
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from .models import Supplier, Grade, Customer, TypeOfMaterial, MaterialType
 
 @api_view(['GET'])
 def supplier_suggestions(request):
@@ -431,10 +430,6 @@ def balance_after_hold_for_autofill(request=None):
     
     return filtered_df_dict
 
-
-
-from django.http import JsonResponse
-
 def get_part_details1(request):
     grades = [grade.strip().lower() for grade in request.GET.get('grade', '').split(',')]
     dias = [dia.strip().lower() for dia in request.GET.get('dia', '').split(',')]
@@ -629,12 +624,7 @@ class DispatchListView(APIView):
         return Response(serializer.data)
     
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.generics import ListAPIView, RetrieveUpdateAPIView
-from .models import RawMaterial
-from .serializers import RawMaterialSerializer
+
 
 # List all RawMaterials
 class RawMaterialListView(ListAPIView):
@@ -1859,22 +1849,27 @@ class ForgingQualityReportAPIView(APIView):
         visual_data, total_visual_production, total_visual_target, total_visual_production_day, total_visual_production_night, total_visual_target_day, total_visual_target_night, total_visual_rejection, total_visual_rejection_cost = process_section_data(
             visual_aggregated, masterlist_data, visual_fields, "visual")
 
-        # MACHINING SECTION
-        machining_fields = ['cnc_height', 'cnc_od', 'cnc_bore', 'cnc_groove', 'cnc_dent', 'forging_height', 'forging_od', 'forging_bore', 'forging_crack', 'forging_dent', 'pre_mc_bore', 'pre_mc_od', 'pre_mc_height']
-        machining_aggregated = machining_qs.values('component').annotate(
+        cnc_machining_qs = machining_qs.filter(mc_type='CNC')
+
+        machining_fields = ['cnc_height', 'cnc_od', 'cnc_bore', 'cnc_groove', 'cnc_dent', 
+                            'forging_height', 'forging_od', 'forging_bore', 'forging_crack', 
+                            'forging_dent', 'pre_mc_bore', 'pre_mc_od', 'pre_mc_height']
+
+        machining_aggregated = cnc_machining_qs.values('component').annotate(
             total_production=Sum(Case(When(setup='II', then=F("production")), default=Value(0), output_field=IntegerField())),
-            total_target= Sum(Case(When(setup='II', then=F("target")), default=Value(0), output_field=IntegerField())),
+            total_target=Sum(Case(When(setup='II', then=F("target")), default=Value(0), output_field=IntegerField())),
             total_production_day=Sum(Case(When(shift="day", setup='II', then=F("production")), default=Value(0), output_field=IntegerField())),
-            total_target_day=Sum(Case(When(shift="day",setup='II', then=F("target")), default=Value(0), output_field=IntegerField())),
+            total_target_day=Sum(Case(When(shift="day", setup='II', then=F("target")), default=Value(0), output_field=IntegerField())),
             total_production_night=Sum(Case(When(shift="night", setup='II', then=F("production")), default=Value(0), output_field=IntegerField())),
-            total_target_night=Sum(Case(When(shift="night",setup='II', then=F("target")), default=Value(0), output_field=IntegerField())),
+            total_target_night=Sum(Case(When(shift="night", setup='II', then=F("target")), default=Value(0), output_field=IntegerField())),
             **{f'total_{field}': Sum(field) for field in machining_fields}
         )
 
-        machining_data, total_machining_production, total_machining_target, total_machining_production_day, total_machining_production_night, total_machining_target_day, total_machining_target_night, total_machining_rejection, total_machining_rejection_cost = process_section_data(
-            machining_aggregated, masterlist_data, machining_fields, "machining", qs=machining_qs, unique_fields=["machine_no"]
+        machining_data, total_machining_production, total_machining_target, total_machining_production_day, \
+        total_machining_production_night, total_machining_target_day, total_machining_target_night, \
+        total_machining_rejection, total_machining_rejection_cost = process_section_data(
+            machining_aggregated, masterlist_data, machining_fields, "machining", qs=cnc_machining_qs, unique_fields=["machine_no"]
         )
-
         # Identify components in Visual and FI but not in Machining
         visual_components = set(visual_data.keys())
         fi_components = set(fi_data.keys())
@@ -2599,3 +2594,71 @@ def monthly_consumption_trend(request):
     ]
 
     return Response(response_data)
+
+
+from django.shortcuts import get_object_or_404
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from .models import PurchaseOrder, Goods
+from .serializers import PurchaseOrderSerializer, PurchaseOrderCreateSerializer
+from io import BytesIO
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from django.http import HttpResponse
+
+class CreatePurchaseOrder(APIView):
+    def post(self, request):
+        serializer = PurchaseOrderCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class RetrievePurchaseOrder(APIView):
+    def get(self, request, po_number):
+        purchase_order = get_object_or_404(PurchaseOrder, po_number=po_number)
+        serializer = PurchaseOrderSerializer(purchase_order)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+class GeneratePDF(APIView):
+    def get(self, request, po_number):
+        po = get_object_or_404(PurchaseOrder, po_number=po_number)
+        goods = Goods.objects.filter(purchase_order=po)
+
+        buffer = BytesIO()
+        pdf = SimpleDocTemplate(buffer, pagesize=letter)
+        elements = []
+
+        styles = getSampleStyleSheet()
+        elements.append(Paragraph(f"Purchase Order: {po.po_number}", styles['Title']))
+        elements.append(Paragraph(f"Date: {po.date}", styles['Normal']))
+        elements.append(Paragraph(f"Supplier: {po.supplier_name}", styles['Normal']))
+        elements.append(Paragraph(f"User: {po.user}", styles['Normal']))  # Include user in the PDF
+
+        data = [['S.No.', 'Item Name', 'Quantity', 'Unit Price', 'Total Price']]
+        for index, good in enumerate(goods, start=1):
+            data.append([index, good.name, good.quantity, f"${good.unit_price}", f"${good.total_price}"])
+
+        table = Table(data)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ]))
+        elements.append(table)
+
+        elements.append(Paragraph(f"Grand Total: ${po.total_amount}", styles['Heading2']))
+
+        pdf.build(elements)
+        buffer.seek(0)
+
+        response = HttpResponse(buffer, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{po.po_number}.pdf"'
+        return response

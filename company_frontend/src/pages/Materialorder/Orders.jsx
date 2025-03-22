@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { Sidebar } from '../../components/Rawmaterial/Sidebar';
+import DashboardHeader from '../../components/Rawmaterial/DashboardHeader';
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion"; // Import Framer Motion for animations
 
@@ -34,8 +35,12 @@ const Orders = () => {
   );
 
   return (
-    <div className=" mx-auto mt-24">
-      <Sidebar />
+    <div className="App bg-gray-50 min-h-screen flex">
+    <Sidebar />
+    <div className="flex-1 flex flex-col">
+      <DashboardHeader />
+      {/* Main content area */}
+      <div className="flex-1 p-6 mt-12 ml-60 max-w-[calc(100vw-240px)] overflow-x-auto">
       <div className="flex justify-between items-center mb-2">
         <h2 className="text-3xl font-bold text-gray-800">Orders List</h2>
         <motion.button
@@ -105,6 +110,8 @@ const Orders = () => {
         </table>
       </div>
       {selectedOrder && <OrderDetails order={selectedOrder} onClose={() => setSelectedOrder(null)} />}
+    </div>
+    </div>
     </div>
   );
 };

@@ -148,7 +148,7 @@ const ProductionTrendChart = () => {
   };
 
   return (
-    <div className=" mx-auto mt-24 mr-2 bg-white rounded-xl shadow-lg  hover:shadow-2xl duration-300">
+    <div className=" mx-auto  mr-2 bg-white rounded-xl shadow-lg  hover:shadow-2xl duration-300">
       
       <div className="overflow-hidden rounded-lg shadow-md bg-white p-2">
         <HighchartsReact highcharts={Highcharts} options={options} />

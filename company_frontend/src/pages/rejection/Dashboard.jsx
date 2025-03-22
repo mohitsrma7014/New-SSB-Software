@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";
-import { Sidebar } from '../../components/AdminComponents/Sidebar';
+import { Sidebar } from "../../components/Rawmaterial/Sidebar";
+import DashboardHeader from '../../components/Rawmaterial/DashboardHeader';
 
 import {
   Card,
@@ -604,8 +605,13 @@ const Dashboard = () => {
 
 
   return (
-    <div className="p-2 grid gap-2 mt-24">
-      <Sidebar />
+    <div className="App bg-gray-50 min-h-screen flex">
+    <Sidebar />
+    <div className="flex-1 flex flex-col">
+      <DashboardHeader />
+      {/* Main content area */}
+      <div className="flex-1 p-6 mt-12 ml-60 max-w-[calc(100vw-240px)] overflow-x-auto">
+ 
       <div className="flex gap-2">
         <TextField type="date" name="start_date" value={filters.start_date} onChange={handleFilterChange} />
         <TextField type="date" name="end_date" value={filters.end_date} onChange={handleFilterChange} />
@@ -623,6 +629,8 @@ const Dashboard = () => {
 
       {renderTable("Forging Data", data?.forging, "forging")}
       {renderCombinedMachiningTable()}
+    </div>
+    </div>
     </div>
   );
 };

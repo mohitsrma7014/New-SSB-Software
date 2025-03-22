@@ -45,7 +45,7 @@ const ProductionComparison = () => {
 
     return (
         <div className="user-greeting-box bg-white rounded-xl shadow-lg  hover:shadow-2xl duration-300" style={styles.greetingBox}>
-                <div className=" mx-auto p-3  shadow-lg text-white space-y-1 ">
+                <div className=" mx-auto p-2  shadow-lg text-white space-y-1 ">
                     {/* Current Month */}
                     <div className="flex justify-between items-center bg-white bg-opacity-20 p-2 rounded-lg shadow-md transform transition-transform hover:scale-105">
                     <div>
@@ -62,7 +62,6 @@ const ProductionComparison = () => {
                                     </span >
                                     <p className="mt-3">{Math.abs(parseFloat(percentageDifference)).toFixed(2)}%</p>
                                     <div>
-                                
                                 </div>
                                 
                         </div>

@@ -112,7 +112,7 @@ const MonthlyGraph = () => {
   };
 
   return (
-    <div className="p-2   ">
+    <div className="p-2">
       {/* Filters & KPI Box */}
       <div className="flex items-center shadow-lg rounded-xl justify-between mb-2 bg-white p-2 rounded-lg shadow-md">
         {/* Month & Year Selector */}

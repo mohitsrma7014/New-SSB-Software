@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react'; // Use useMemo for 
 import PropTypes from 'prop-types';
 import { Database, ListChecks, AlertTriangle } from 'lucide-react';
 import { Sidebar } from './Sidebar';
+import  DashboardHeader  from './DashboardHeader';
 import * as XLSX from 'xlsx';  // Import XLSX for Excel export functionality
 
 const formatDate = (date) => {
@@ -234,13 +235,14 @@ export default function App() {
   }
   
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-  <Sidebar />
-  <div className="flex items-center mb-8">
-    <h1 className="text-3xl font-bold text-gray-800">RM</h1>
-  </div>
-
-  <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-2">
+    <div className="App bg-gray-50 min-h-screen flex">
+    <Sidebar />
+    <div className="flex-1 flex flex-col">
+      <DashboardHeader />
+      {/* Main content area */}
+      <div className="flex-1 p-6 mt-12 ml-60 max-w-[calc(100vw-240px)] overflow-x-auto">
+ {/* Adjust margin-top (mt) and margin-left (ml) based on your header and sidebar width */}
+  <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-2">
     <InfoCard 
       title="Hold Status" 
       value={data.filtered_df_dict1.hold}
@@ -341,8 +343,8 @@ export default function App() {
 
   <div className="bg-white rounded-lg shadow-md">
     <div className="overflow-x-auto">
-      <div className="max-h-[500px] overflow-y-auto">
-        <table className="min-w-[1500px] table-auto divide-y divide-gray-200">
+      <div className="h-screen overflow-y-auto">
+        <table className=" table-auto divide-y divide-gray-200">
           {/* Sticky Header */}
           <thead className="bg-gray-50 sticky top-0 z-10">
             <tr>
@@ -371,6 +373,8 @@ export default function App() {
           </tbody>
         </table>
       </div>
+    </div>
+    </div>
     </div>
   </div>
 </div>

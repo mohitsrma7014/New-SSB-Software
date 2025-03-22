@@ -5,16 +5,59 @@ from .models import CALIBRATION, CALIBRATIONHistory
 from .serializers import ComplaintSerializer, ComplaintHistorySerializer
 
 # Create & List Complaints
+from rest_framework import generics
+from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from .models import CALIBRATION
+from .serializers import ComplaintSerializer
+from rest_framework.pagination import PageNumberPagination
+from django_filters import rest_framework as filters
+
+# Custom filter class
+class CalibrationFilter(filters.FilterSet):
+    uid = filters.CharFilter(lookup_expr='icontains')
+    name_of_instrument = filters.CharFilter(lookup_expr='icontains')
+    catagory = filters.CharFilter(lookup_expr='icontains')
+    department = filters.CharFilter(lookup_expr='icontains')
+    supplier = filters.CharFilter(lookup_expr='icontains')
+    CALIBRATION_AGENCY = filters.CharFilter(lookup_expr='icontains')
+    LOCATION = filters.CharFilter(lookup_expr='icontains')
+
+    class Meta:
+        model = CALIBRATION
+        fields = ['uid', 'name_of_instrument', 'catagory', 'department', 'supplier', 'CALIBRATION_AGENCY', 'LOCATION']
+
+# Custom pagination class
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
 class ComplaintListCreateView(generics.ListCreateAPIView):
-    queryset = CALIBRATION.objects.filter(status="Running").order_by('-created_at')
     serializer_class = ComplaintSerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [filters.DjangoFilterBackend]
+    filterset_class = CalibrationFilter
+
+    def get_queryset(self):
+        queryset = CALIBRATION.objects.filter(status="Running").order_by('-created_at')
+        return queryset
 
     def perform_create(self, serializer):
         if not serializer.is_valid():
             print("Validation Errors:", serializer.errors)  # Log validation errors
         serializer.save(created_by=self.request.user)
+
+from rest_framework.decorators import api_view, permission_classes
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_all_complaints_for_notifications(request):
+    complaints = CALIBRATION.objects.filter(status="Running").order_by('-created_at')
+    serializer = ComplaintSerializer(complaints, many=True)
+    return Response(serializer.data)
 
 class ComplaintListCreateViewR(generics.ListCreateAPIView):
     queryset = CALIBRATION.objects.filter(status="Rejected").order_by('-created_at')

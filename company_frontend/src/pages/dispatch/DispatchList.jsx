@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './DispatchList.css'; // For custom styles
-import { Sidebar } from '../../components/AdminComponents/Sidebar';
+import { Sidebar } from '../../components/Rawmaterial/Sidebar';
+import DashboardHeader from '../../components/Rawmaterial/DashboardHeader';
 const DispatchList = () => {
     const [dispatches, setDispatches] = useState([]);
     const [searchTerm, setSearchTerm] = useState(''); // State to hold the search term
@@ -32,9 +33,13 @@ const DispatchList = () => {
     });
 
     return (
-        <div className="dispatch-list-container">
-            <div class="top">
-            <Sidebar />
+        <div className="App bg-gray-50 min-h-screen flex">
+    <Sidebar />
+    <div className="flex-1 flex flex-col">
+      <DashboardHeader />
+      {/* Main content area */}
+      <div className="flex-1 p-6 ml-60 max-w-[calc(100vw-240px)] overflow-x-auto">
+   
             </div>
             <h1>Dispatch List</h1>
 
@@ -88,6 +93,7 @@ const DispatchList = () => {
                     ))}
                 </tbody>
             </table>
+        </div>
         </div>
     );
 };

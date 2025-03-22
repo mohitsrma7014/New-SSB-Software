@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Sidebar } from '../components/AdminComponents/Sidebar';
+import { Sidebar } from '../components/Rawmaterial/Sidebar';
+import DashboardHeader from '../components/Rawmaterial/DashboardHeader';
 import  UserGreetingBox  from '../components/Add/UserGreetingBox';
 import  ProductionComparison  from '../components/Add/ProductionComparison';
 import  ProductionTrendChart  from '../components/Add/ProductionTrendChart';
@@ -59,30 +60,25 @@ const Admin = () => {
   
   
 return (
-  <div className="admin-container" style={{ display: 'flex', flexDirection: 'row' }}>
-    <Sidebar />
-
+  <div className="App bg-gray-50 min-h-screen flex">
+      <Sidebar />
+      <div className="flex-1 flex flex-col">
+        <DashboardHeader />
+        {/* Main content area */}
+        <div className="flex-1 p-6 mt-12 ml-60">
     <div className="content" style={{ display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', marginBottom: '0' }}>
-            {/* Left Side: Greeting Box and Production Comparison */}
-            <div style={{ display: 'flex', flexDirection: 'column', width: '500px' }}>
-                <div className="App" style={{ marginBottom: '0' }}>
-                    <UserGreetingBox />
-                </div>
-                <div className="App">
-                    <ProductionComparison />
-                </div>
-            </div>
+            
 
             {/* Right Side: Both Graphs taking 50% each */}
             <div style={{ display: 'flex', flexDirection: 'row', flex: 1 ,gap: '10px'}}>
-                <div style={{ flex: .495}}>
+                <div style={{ flex: .5}}>
                     <div className="App">
                         <ProductionTrendChart />
                     </div>
                 </div>
 
-                <div style={{ flex: .495 }}>
+                <div style={{ flex: .5 }}>
                     <div className="App">
                         <RejectionTrendChart />
                     </div>
@@ -99,8 +95,17 @@ return (
         <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', marginBottom: '0' }}>
             {/* Left Side: Greeting Box and Production Comparison */}
             <div style={{ display: 'flex', flexDirection: 'column', width: '500px'}}>
+              {/* Left Side: Greeting Box and Production Comparison */}
+            <div style={{ display: 'flex', flexDirection: 'column', width: '500px' }}>
+                <div className="App" style={{ marginBottom: '0' }}>
+                <ProductionComparison />
+                </div>
                 <div className="App">
-                  <MonthlyReceivingTrend />
+                <MonthlyReceivingTrend />
+                </div>
+            </div>
+                <div className="App">
+                 
                 </div>
             </div>
 
@@ -113,25 +118,10 @@ return (
                 </div>
             </div>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', marginBottom: '0' }}>
-            {/* Left Side: Greeting Box and Production Comparison */}
-            <div style={{ display: 'flex', flexDirection: 'column', width: '500px' }}>
-                <div className="App">
-                  <MonthlyConsumptionTrend />
-                </div>
-            </div>
-
-            {/* Right Side: Both Graphs taking 50% each */}
-            <div style={{ display: 'flex', flexDirection: 'row', flex: 1 ,gap: '10px'}}>
-                <div style={{ flex: 1}}>
-                    <div className="App">
-                    <MonthlyConsumptionGraph />
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
     
+</div>
+</div>
 </div>
 
 

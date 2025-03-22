@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './RawMaterialForm.css'; // Import the CSS file
 import { Sidebar } from './Sidebar';
+import DashboardHeader from './DashboardHeader';
 
 const RawMaterialForm = () => {
   const initialFormData = {
@@ -114,9 +115,12 @@ const RawMaterialForm = () => {
   
 
   return (
-    <div className="page-container">
-      <Sidebar /> {/* Move Sidebar outside the form container */}
-      <div className="form-container">
+    <div className="App bg-gray-50 min-h-screen flex">
+    <Sidebar />
+    <div className="flex-1 flex flex-col">
+      <DashboardHeader />
+      {/* Main content area */}
+      <div className="flex-1 p-16 mt-12 ml-60 max-w-[calc(100vw-240px)] overflow-x-auto">
         <form onSubmit={handleSubmit} className="raw-material-form" autoComplete="off"> {/* Add autoComplete="off" */}
           <h2>Raw Material Form</h2>
           <div className="form-grid">
@@ -159,9 +163,11 @@ const RawMaterialForm = () => {
             ))}
           </div>
           {errorMessage && <p className="error-message">{errorMessage}</p>}
-          <button type="submit" className="form-submit">Submit</button>
+          <button type="submit" className="form-submit mt-4">Submit</button>
         </form>
       </div>
+      </div>
+      
     </div>
   );
 };

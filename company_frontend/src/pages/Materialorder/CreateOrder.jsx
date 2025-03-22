@@ -3,6 +3,7 @@ import axios from "axios";
 import { Sidebar } from '../../components/Rawmaterial/Sidebar';
 import { motion } from "framer-motion"; // Import Framer Motion for animations
 import { useNavigate } from "react-router-dom";
+import DashboardHeader from '../../components/Rawmaterial/DashboardHeader';
 
 
 const CreateOrder = () => {
@@ -131,11 +132,15 @@ const CreateOrder = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <div className="max-w-lg w-full bg-white shadow-md rounded-lg p-6">
-        <Sidebar />
+    <div className="App bg-gray-50 min-h-screen flex">
+    <Sidebar />
+    <div className="flex-1 flex flex-col">
+      <DashboardHeader />
+      {/* Main content area */}
+      <div className="flex-1 p-16 mt-12 ml-60 max-w-[calc(100vw-240px)] overflow-x-auto">
+ 
         <div className="flex justify-between items-center mb-2">
-        <h2 className="text-3xl font-bold text-gray-800">Orders List</h2>
+        <h2 className="text-3xl font-bold text-gray-800">Create Orders</h2>
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
@@ -201,6 +206,8 @@ const CreateOrder = () => {
         </form>
       </div>
     </div>
+    </div>
+    
   );
 };
 

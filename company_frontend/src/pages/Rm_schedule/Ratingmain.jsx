@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import Dashboard from "./Dashboard";
 import { Sidebar } from "../../components/Rawmaterial/Sidebar";
+import DashboardHeader from '../../components/Rawmaterial/DashboardHeader';
 
 function Ratingmain() {
   // Get current month in YYYY-MM format
@@ -45,13 +46,19 @@ function Ratingmain() {
   }, [month]);
 
   return (
-    <div className={`min-h-screen ${darkMode ? "dark" : ""}`}>
-      <Sidebar />
-
-      <div className="text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 min-h-screen mt-[110px]">
+<div className="App bg-gray-50 min-h-screen flex">
+    <Sidebar />
+    <div className="flex-1 flex flex-col">
+      <DashboardHeader />
+      {/* Main content area */}
+      <div className="flex-1 p-6 mt-12 ml-60 max-w-[calc(100vw-240px)] overflow-x-auto">
+ 
+      <div className="text-gray-900  dark:border-gray-600 dark:text-gray-100 min-h-screen ">
         <FiltersPanel month={month} setMonth={setMonth} />
         <Dashboard data={data} />
       </div>
+    </div>
+    </div>
     </div>
   );
 }
@@ -90,7 +97,7 @@ const FiltersPanel = ({ month, setMonth }) => {
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg p-2 shadow-lg text-black max-w-[200px] fixed top-[30px] left-[5px] z-[1999]">
+    <div className="bg-white dark:bg-gray-800 rounded-lg p-2 shadow-lg text-black max-w-[300px] fixed top-[90px] right-[20px] z-[20]">
       <div className="flex flex-col gap-2">
         {/* Month Dropdown */}
         <select

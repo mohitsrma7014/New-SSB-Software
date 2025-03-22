@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import { Sidebar } from "./Sidebar";
+import DashboardHeader from './DashboardHeader';
 import {
     MagnifyingGlassIcon as SearchIcon,
     ArrowPathIcon as RefreshIcon,
@@ -65,15 +66,17 @@ const PlanningUpdates1 = () => {
     const memoizedData = useMemo(() => blockmtData, [blockmtData]);
 
     return (
-        <div className="min-h-screen bg-gray-50 mt-20">
-            <Sidebar />
-            <div className="w-full">
-                <h1 className="text-4xl font-extrabold text-gray-800 mb-8 text-center">
-                    Batch List
-                </h1>
+        <div className="App bg-gray-50 min-h-screen flex">
+    <Sidebar />
+    <div className="flex-1 flex flex-col">
+      <DashboardHeader />
+      {/* Main content area */}
+      <div className="flex-1 p-6 mt-12 ml-60 max-w-[calc(100vw-240px)] overflow-x-auto">
+ 
+      <h5 className=" font-extrabold text-gray-800 mb-2 text-center"> Batch List</h5>
 
                 {/* Filter Form */}
-                <form onSubmit={handleSubmit} className="bg-white shadow-md rounded-lg p-6 mb-8 flex items-center space-x-4">
+                <form onSubmit={handleSubmit} className="bg-white shadow-md rounded-lg p-2 mb-2 flex items-center space-x-2">
                     {[
                         { label: "Batch ID", name: "block_mt_id", value: filters.block_mt_id },
                         { label: "Grade", name: "grade", value: filters.grade },
@@ -214,6 +217,8 @@ const PlanningUpdates1 = () => {
                 </div>
             </div>
         </div>
+        </div>
+        
     );
 };
 

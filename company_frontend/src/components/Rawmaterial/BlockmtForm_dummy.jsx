@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Sidebar } from './Sidebar';
+import DashboardHeader from './DashboardHeader';
 
 const BlockmtForm_dummy = ({ schedule, onClose }) => {
   const [formData, setFormData] = useState({
@@ -197,11 +198,16 @@ const BlockmtForm_dummy = ({ schedule, onClose }) => {
   
 
   return (
-    <div className="page-container">
-  <Sidebar />  {/* Move Sidebar outside the form container */}
+    <div className="App bg-gray-50 min-h-screen flex">
+    <Sidebar />
+    <div className="flex-1 flex flex-col">
+      <DashboardHeader />
+      {/* Main content area */}
+      <div className="flex-1  ml-60 max-w-[calc(100vw-240px)] overflow-x-auto">
+ 
   <div className="form-container">
     <form onSubmit={handleSubmit} className="blockmt-form">
-      <h2>Dummy Poduction Planning</h2>
+      <h2>Poduction Planning Rm Cheq</h2>
       <div className="form-grid">
         {Object.keys(formData).map((key) => {
           if (key === 'line') {
@@ -226,6 +232,7 @@ const BlockmtForm_dummy = ({ schedule, onClose }) => {
                   
                 </select>
               </div>
+              
             );
           }
 
@@ -263,7 +270,8 @@ const BlockmtForm_dummy = ({ schedule, onClose }) => {
     </form>
   </div>
 </div>
-
+</div>
+</div>
   );
 };
 

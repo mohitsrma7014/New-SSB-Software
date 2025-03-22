@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { Sidebar } from './Sidebar';
+import DashboardHeader from './DashboardHeader';
 const IssuList = () => {
   const [batchData, setBatchData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
@@ -33,10 +34,14 @@ const IssuList = () => {
   };
 
   return (
-    <div className="p-1 bg-gray-100 min-h-screen mt-20">
-         <Sidebar />
+    <div className="App bg-gray-50 min-h-screen flex">
+    <Sidebar />
+    <div className="flex-1 flex flex-col">
+      <DashboardHeader />
+      {/* Main content area */}
+      <div className="flex-1 p-6 mt-12 ml-60 max-w-[calc(100vw-240px)] overflow-x-auto">
       <h1 className="text-3xl font-bold text-center text-blue-500 mb-1">
-        Batch Tracking List
+         Material Issue Data
       </h1>
 
       {/* Search Input */}
@@ -49,9 +54,9 @@ const IssuList = () => {
       />
 
       {/* Table */}
-      <div className="overflow-x-auto shadow-lg rounded-lg">
-        <table className="min-w-full bg-white border-collapse border border-gray-200">
-          <thead className="sticky top-0 bg-gray-300 text-black z-10">
+      <div className="overflow-auto h-screen border border-gray-300 rounded-lg shadow">
+    <table className="bg-white w-full">
+      <thead className="bg-gray-50 sticky top-0 z-20 shadow-md">
             <tr>
               <th className="p-2 text-left border">Batch Id</th>
               <th className="p-2 text-left border">Issue Id</th>
@@ -92,6 +97,8 @@ const IssuList = () => {
           </tbody>
         </table>
       </div>
+    </div>
+    </div>
     </div>
   );
 };

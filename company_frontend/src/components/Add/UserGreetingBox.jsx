@@ -69,7 +69,6 @@ const styles = {
     borderRadius: "8px",
     boxShadow: "0 1px 4px rgba(0, 0, 0, 0.1)",
     backgroundColor: "#fff",
-    margin: "100px 10px 0 10px", // Top, Right, Bottom, Left
   },
   profileImage: {
     width: "120px",

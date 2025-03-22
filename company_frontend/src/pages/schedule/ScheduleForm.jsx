@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import { Sidebar } from '../../components/AdminComponents/Sidebar';
+import { Sidebar } from '../../components/Rawmaterial/Sidebar';
+import DashboardHeader from '../../components/Rawmaterial/DashboardHeader';
 
 function ScheduleForm() {
     const [formData, setFormData] = useState({
@@ -157,9 +158,12 @@ function ScheduleForm() {
     };
 
     return (
-        <div className="page-container">
-            <Sidebar />
-            <div className="form-container">
+        <div className="App bg-gray-50 min-h-screen flex">
+    <Sidebar />
+    <div className="flex-1 flex flex-col">
+      <DashboardHeader />
+      {/* Main content area */}
+      <div className="flex-1 p-16 mt-12 ml-60 max-w-[calc(100vw-240px)] overflow-x-auto">
                 <form onSubmit={handleSubmit} className="blockmt-form">
                     <h2>Add Customer Schedule</h2>
                     <div className="form-grid">
@@ -224,6 +228,8 @@ function ScheduleForm() {
                 </form>
             </div>
         </div>
+        </div>
+
     );
 }
 

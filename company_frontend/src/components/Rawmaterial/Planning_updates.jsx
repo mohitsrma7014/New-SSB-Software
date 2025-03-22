@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Sidebar } from './Sidebar';
+import DashboardHeader from './DashboardHeader';
 import {
     MagnifyingGlassIcon as SearchIcon,
     ArrowPathIcon as RefreshIcon,
@@ -53,13 +54,17 @@ const PlanningUpdates = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 mt-20">
-            <Sidebar />
-    <div className="w-full">
-        <h1 className="text-4xl font-extrabold text-gray-800 mb-8 text-center">New Planning List</h1>
+        <div className="App bg-gray-50 min-h-screen flex">
+    <Sidebar />
+    <div className="flex-1 flex flex-col">
+      <DashboardHeader />
+      {/* Main content area */}
+      <div className="flex-1 p-6 mt-12 ml-60 max-w-[calc(100vw-240px)] overflow-x-auto">
+ 
+        <h5 className=" font-extrabold text-gray-800 mb-2 text-center">New Planning List</h5>
 
         {/* Filter Form */}
-        <form onSubmit={handleSubmit} className="bg-white shadow-md rounded-lg p-6 mb-8 flex items-center space-x-4">
+        <form onSubmit={handleSubmit} className="bg-white shadow-md rounded-lg p-2 mb-2 flex items-center space-x-2">
             {[
                 { label: "Batch ID", name: "block_mt_id", value: filters.block_mt_id },
                 { label: "Grade", name: "grade", value: filters.grade },
@@ -92,9 +97,9 @@ const PlanningUpdates = () => {
 
         {/* Data List */}
         {loading ? (
-            <div className="flex justify-center items-center py-16">
+            <div className="flex justify-center items-center ">
                 <RefreshIcon className="h-10 w-10 text-blue-500 animate-spin" />
-                <p className="ml-4 text-lg text-blue-500">Loading data...</p>
+                <p className="ml-2 text-lg text-blue-500">Loading data...</p>
             </div>
         ) : (
             <div className="grid gap-6" style={{
@@ -171,6 +176,7 @@ const PlanningUpdates = () => {
             </div>
         )}
     </div>
+</div>
 </div>
 
     );

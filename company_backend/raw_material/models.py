@@ -256,14 +256,19 @@ from datetime import timedelta
 
 class Order(models.Model):
     supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE)
+    supplier_details = models.CharField(max_length=100, blank=True, null=True)
+    supplier_gstin = models.CharField(max_length=100, blank=True, null=True)
+    po_number = models.CharField(max_length=100, blank=True, null=True)
+    po_date = models.DateField()
+    description_of_good = models.CharField(max_length=100, blank=True, null=True)
     rm_grade = models.CharField(max_length=100)
     rm_standard = models.CharField(max_length=100)
     bar_dia = models.FloatField()
     qty = models.IntegerField()
-    po_date = models.DateField()
+    
     delivery_date = models.DateField(blank=True, null=True)
     heat_no = models.CharField(max_length=100, blank=True, null=True)
-    po_number = models.CharField(max_length=100, blank=True, null=True)
+    
     actual_delivery_date = models.DateField(blank=True, null=True)
     verified_by = models.CharField(max_length=100, blank=True, null=True)
     delay_days = models.IntegerField(blank=True, null=True)
@@ -272,3 +277,30 @@ class Order(models.Model):
         if not self.delivery_date:
             self.delivery_date = self.po_date + timedelta(days=self.supplier.delivery_days)
         super().save(*args, **kwargs)
+
+from django.db import models
+
+class PurchaseOrder(models.Model):
+    po_number = models.CharField(max_length=20, unique=True)
+    date = models.DateField(auto_now_add=True)
+    supplier_name = models.CharField(max_length=255)
+    user = models.CharField(max_length=100, blank=True, null=True)  # Store username or user identifier
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    year = models.IntegerField()
+
+    def save(self, *args, **kwargs):
+        if not self.po_number:
+            last_po = PurchaseOrder.objects.filter(year=self.year).order_by('-po_number').first()
+            if last_po:
+                last_number = int(last_po.po_number.split('-')[-1])
+                self.po_number = f"PO-{self.year}-{str(last_number + 1).zfill(3)}"
+            else:
+                self.po_number = f"PO-{self.year}-001"
+        super().save(*args, **kwargs)
+
+class Goods(models.Model):
+    name = models.CharField(max_length=255)
+    quantity = models.IntegerField()
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+    total_price = models.DecimalField(max_digits=10, decimal_places=2)
+    purchase_order = models.ForeignKey(PurchaseOrder, on_delete=models.CASCADE)

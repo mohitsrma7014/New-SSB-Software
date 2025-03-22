@@ -1,14 +1,11 @@
 /* DispatchList.css */
-.dispatch-list-container {
-    margin-top: 100px; /* Offset content by 100px */
-}
+
 .top{
     z-index: 1000;
 }
 
 .search-container {
     position: sticky;
-    top: 100px; /* Sticky after 100px scroll */
     background-color: white;
     padding: 10px;
     border-bottom: 2px solid #ccc;
@@ -16,14 +13,16 @@
 }
 
 .search-box {
-    width: 100%;
+    width: 85%;
     padding: 8px;
     font-size: 16px;
+    margin-left: 264px;
 }
 
 .dispatch-table {
-    width: 100%;
+    width: 85%;
     border-collapse: collapse;
+    margin-left: 264px;
 }
 
 .dispatch-table th,

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Sidebar } from './Sidebar';
+import DashboardHeader from './DashboardHeader';
 
 
 const BatchForm = () => {
@@ -215,8 +216,12 @@ const BatchForm = () => {
   };
 
   return (
-    <div className="p-6 mt-24 max-w-7xl mx-auto">
-      <Sidebar />
+    <div className="App bg-gray-50 min-h-screen flex">
+    <Sidebar />
+    <div className="flex-1 flex flex-col">
+      <DashboardHeader />
+      {/* Main content area */}
+      <div className="flex-1 p-16 mt-12 ml-60 max-w-[calc(100vw-240px)] overflow-x-auto">
       {formVisible && (
         <>
           <h2 className="text-2xl font-semibold mb-4 text-center">Generate Batch Tracking Number</h2>
@@ -318,6 +323,8 @@ const BatchForm = () => {
           </button>
         </div>
       )}
+    </div>
+    </div>
     </div>
   );
 };

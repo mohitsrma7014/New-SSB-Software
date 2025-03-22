@@ -116,3 +116,34 @@ class MasterlistHistorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Masterlist.history.model  # Access the history model
         fields = '__all__'  # Include all fields in the history model
+
+
+from .models import PurchaseOrder, Goods
+
+class GoodsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Goods
+        fields = ['id', 'name', 'quantity', 'unit_price', 'total_price', 'purchase_order']
+        read_only_fields = ['id', 'purchase_order']
+
+class PurchaseOrderSerializer(serializers.ModelSerializer):
+    goods = GoodsSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = PurchaseOrder
+        fields = ['id', 'po_number', 'date', 'supplier_name', 'user', 'total_amount', 'year', 'goods']
+        read_only_fields = ['id', 'po_number', 'date']
+
+class PurchaseOrderCreateSerializer(serializers.ModelSerializer):
+    goods = GoodsSerializer(many=True)
+
+    class Meta:
+        model = PurchaseOrder
+        fields = ['supplier_name', 'user', 'total_amount', 'year', 'goods']
+
+    def create(self, validated_data):
+        goods_data = validated_data.pop('goods')
+        purchase_order = PurchaseOrder.objects.create(**validated_data)
+        for good_data in goods_data:
+            Goods.objects.create(purchase_order=purchase_order, **good_data)
+        return purchase_order

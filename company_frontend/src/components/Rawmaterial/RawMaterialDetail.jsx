@@ -111,7 +111,6 @@ const RawMaterialDetail = ({ materialId, onBack }) => {
           <PrintSlip material={material} />
         ) : (
           <>
-            <Sidebar className="w-1/4" /> {/* Sidebar positioned on the left */}
             <div className="ml-1/4 p-4">
               <h1 className="text-2xl font-bold mb-6">Material Details</h1>
               <form onSubmit={handleUpdate} className="space-y-6">

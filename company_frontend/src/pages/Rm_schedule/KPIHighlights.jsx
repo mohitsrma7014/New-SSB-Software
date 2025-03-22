@@ -53,7 +53,7 @@ const KPIHighlights = ({ data = [] }) => {
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-black justify-center items-center text-center mt-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 text-black justify-center items-center text-center mt-4">
       {kpis.map((kpi, index) => (
         <motion.div
           key={index}
