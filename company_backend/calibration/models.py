@@ -120,6 +120,34 @@ class ID(models.Model):
     uid = models.CharField(max_length=255, unique=True)
     receiving_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     verified_by = models.CharField(max_length=100, null=True, blank=True)
+    supplier = models.CharField(max_length=100, null=True, blank=True)
+    name_of_instrument = models.CharField(max_length=100, blank=True)
+    department = models.CharField(max_length=100, null=True, blank=True)
 
     def __str__(self):
         return f"{self.uid} - {self.receiving_status}"
+
+
+class Category(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.name
+
+class Supplier(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.name
+
+class Instrument(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.name
+
+class Department(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.name

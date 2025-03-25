@@ -157,6 +157,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://192.168.1.199:5173",
     "http://192.168.1.199:5175",
     "http://192.168.1.199:8000",
+    "http://192.168.1.199:5188",
 ]
 # CORS settings
 CORS_ALLOW_ALL_ORIGINS = True  # This allows all origins. In production, you should specify allowed origins.
@@ -176,6 +177,7 @@ CSRF_TRUSTED_ORIGINS = [
     "http://192.168.1.199:5175",
     "http://192.168.1.199:8001",
     "http://192.168.1.199:8000",
+    "http://192.168.1.199:5188",
 ]
 
 # Make sure CSRF cookies are set correctly for local development without HTTPS

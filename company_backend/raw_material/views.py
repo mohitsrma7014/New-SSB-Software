@@ -614,17 +614,88 @@ class ScheduleAPIView(APIView):
             results.append(schedule_data)
 
         return Response(results)
+    
+    
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from django.db.models import Q
 from .models import dispatch
 from .serializers import DispatchSerializer
 
+class CustomPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+    def get_paginated_response(self, data):
+        return Response({
+            'count': self.page.paginator.count,
+            'next': self.get_next_link(),
+            'previous': self.get_previous_link(),
+            'results': data
+        })
+
 class DispatchListView(APIView):
-    def get(self, request):
-        dispatches = dispatch.objects.all()
-        serializer = DispatchSerializer(dispatches, many=True)
-        return Response(serializer.data)
+    pagination_class = CustomPagination
     
-
-
+    @property
+    def paginator(self):
+        if not hasattr(self, '_paginator'):
+            self._paginator = self.pagination_class()
+        return self._paginator
+    
+    def paginate_queryset(self, queryset):
+        return self.paginator.paginate_queryset(queryset, self.request, view=self)
+    
+    def get_paginated_response(self, data):
+        return self.paginator.get_paginated_response(data)
+    
+    def get(self, request):
+        queryset = dispatch.objects.all()
+        
+        # Apply filters
+        date = request.query_params.get('date', None)
+        component = request.query_params.get('component', None)
+        batch_number = request.query_params.get('batch_number', None)
+        heat_no = request.query_params.get('heat_no', None)
+        invoiceno = request.query_params.get('invoiceno', None)
+        
+        if date:
+            queryset = queryset.filter(date__icontains=date)
+        if component:
+            queryset = queryset.filter(component__icontains=component)
+        if batch_number:
+            queryset = queryset.filter(batch_number__icontains=batch_number)
+        if heat_no:
+            queryset = queryset.filter(heat_no__icontains=heat_no)
+        if invoiceno:
+            queryset = queryset.filter(invoiceno__icontains=invoiceno)
+        
+        # Handle ordering
+        ordering = request.query_params.get('ordering', '-date')
+        if ordering:
+            # Split multiple ordering fields
+            order_fields = [field.strip() for field in ordering.split(',')]
+            # Validate fields exist in model
+            valid_fields = [f.name for f in dispatch._meta.get_fields()]
+            valid_order_fields = []
+            for field in order_fields:
+                # Remove '-' for field check
+                field_name = field.lstrip('-')
+                if field_name in valid_fields:
+                    valid_order_fields.append(field)
+            if valid_order_fields:
+                queryset = queryset.order_by(*valid_order_fields)
+        
+        # Paginate the queryset
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = DispatchSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = DispatchSerializer(queryset, many=True)
+        return Response(serializer.data)
 
 # List all RawMaterials
 class RawMaterialListView(ListAPIView):

@@ -1269,3 +1269,35 @@ def inventory_status(request, component_name=None):
         })
 
     return Response(data)
+
+
+
+from rest_framework import viewsets
+from rest_framework.pagination import PageNumberPagination
+
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 10  # Number of items per page
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+from django_filters import rest_framework as filters
+from rest_framework import viewsets
+import django_filters
+
+class ForgingFilter(django_filters.FilterSet):
+    date = django_filters.CharFilter(field_name="date", lookup_expr="icontains")
+    batch_number = django_filters.CharFilter(field_name="batch_number", lookup_expr="icontains")
+    shift = django_filters.CharFilter(field_name="shift", lookup_expr="icontains")
+    component = django_filters.CharFilter(field_name="component", lookup_expr="icontains")
+    verified_by = django_filters.CharFilter(field_name="verified_by", lookup_expr="icontains")
+
+    class Meta:
+        model = Forging  # ✅ Correct model assigned
+        fields = ["date", "batch_number", "shift", "component", "verified_by"]
+
+class ForgingViewSet1(viewsets.ModelViewSet):
+    queryset = Forging.objects.all()
+    serializer_class = ForgingSerializer
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [filters.DjangoFilterBackend]
+    filterset_class = ForgingFilter

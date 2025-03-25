@@ -49,6 +49,7 @@ class ComplaintListCreateView(generics.ListCreateAPIView):
         if not serializer.is_valid():
             print("Validation Errors:", serializer.errors)  # Log validation errors
         serializer.save(created_by=self.request.user)
+        
 
 from rest_framework.decorators import api_view, permission_classes
 
@@ -60,16 +61,21 @@ def get_all_complaints_for_notifications(request):
     return Response(serializer.data)
 
 class ComplaintListCreateViewR(generics.ListCreateAPIView):
-    queryset = CALIBRATION.objects.filter(status="Rejected").order_by('-created_at')
     serializer_class = ComplaintSerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [filters.DjangoFilterBackend]
+    filterset_class = CalibrationFilter
+
+    def get_queryset(self):
+        queryset = CALIBRATION.objects.filter(status="Rejected").order_by('-created_at')
+        return queryset
 
     def perform_create(self, serializer):
         if not serializer.is_valid():
             print("Validation Errors:", serializer.errors)  # Log validation errors
         serializer.save(created_by=self.request.user)
-
 
 
 
@@ -161,15 +167,22 @@ from rest_framework import status
 from .models import ID
 from .serializers import IDSerializer
 
+
+from .models import ID, Category, Supplier, Instrument, Department
 class GenerateUIDView(APIView):
     def post(self, request):
         category = request.data.get("category")
+        supplier = request.data.get("supplier")
+        name_of_instrument = request.data.get("name_of_instrument")
+        department = request.data.get("department")
 
-        if not category:
-            return Response({"error": "Category is required"}, status=status.HTTP_400_BAD_REQUEST)
+        if not category or not supplier or not name_of_instrument or not department:
+            return Response({"error": "All fields are required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Get all existing UIDs for the given category
-        existing_uids = ID.objects.filter(category=category).values_list('uid', flat=True)
+        # Get the highest UID number for the given combination
+        existing_uids = ID.objects.filter(
+            category=category,
+        ).values_list('uid', flat=True)
 
         highest_number = 0
         for uid in existing_uids:
@@ -185,18 +198,53 @@ class GenerateUIDView(APIView):
         new_uid = f"SSB/{category}/{new_number}"
 
         # Save new UID in ID model
-        id_obj = ID.objects.create(category=category, uid=new_uid)
-        return Response(IDSerializer(id_obj).data, status=status.HTTP_201_CREATED)
+        id_obj = ID.objects.create(
+            category=category,
+            uid=new_uid,
+            supplier=supplier,
+            name_of_instrument=name_of_instrument,
+            department=department
+        )
+        return Response({"uid": new_uid}, status=status.HTTP_201_CREATED)
+    
 
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.response import Response
 
+class CustomPagination(PageNumberPagination):
+    page_size = 10  # Number of items per page
+    page_size_query_param = "page_size"
+    max_page_size = 100
 
+    def get_paginated_response(self, data):
+        return Response({
+            "total_entries": self.page.paginator.count,
+            "total_pages": self.page.paginator.num_pages,
+            "current_page": self.page.number,
+            "next": self.get_next_link(),
+            "previous": self.get_previous_link(),
+            "results": data,
+        })
 
 class IDListView(APIView):
-    def get(self, request):
-        ids = ID.objects.all()
-        serializer = IDSerializer(ids, many=True)
-        return Response(serializer.data)
+    pagination_class = CustomPagination
 
+    def get(self, request):
+        status = request.query_params.get("status", None)  # Get status from query params
+        page = request.query_params.get("page", 1)  # Get page number
+        page_size = request.query_params.get("page_size", 10)  # Get page size
+
+        if status:
+            ids = ID.objects.filter(receiving_status=status)  # Filter by status
+        else:
+            ids = ID.objects.all()  # Fetch all if no status is provided
+
+        # Paginate the results
+        paginator = self.pagination_class()
+        paginated_ids = paginator.paginate_queryset(ids, request)
+        serializer = IDSerializer(paginated_ids, many=True)
+        return paginator.get_paginated_response(serializer.data)
+    
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -229,3 +277,69 @@ def update_status(request, id):  # Change 'uid' to 'id'
 
     return JsonResponse({"error": "Invalid request method"}, status=405)
 
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from .models import Category, Supplier, Instrument, Department
+
+class CategoryListView(APIView):
+    def get(self, request):
+        categories = Category.objects.all().values_list('name', flat=True)
+        return Response(list(categories), status=status.HTTP_200_OK)
+
+    def post(self, request):
+        name = request.data.get("name")
+        if not name:
+            return Response({"error": "Name is required"}, status=status.HTTP_400_BAD_REQUEST)
+        Category.objects.create(name=name)
+        return Response({"message": "Category added successfully"}, status=status.HTTP_201_CREATED)
+
+# Similarly, create views for Supplier, Instrument, and Department
+
+class SupplierListView(APIView):
+    def get(self, request):
+        categories = Supplier.objects.all().values_list('name', flat=True)
+        return Response(list(categories), status=status.HTTP_200_OK)
+
+    def post(self, request):
+        name = request.data.get("name")
+        if not name:
+            return Response({"error": "Name is required"}, status=status.HTTP_400_BAD_REQUEST)
+        Supplier.objects.create(name=name)
+        return Response({"message": "Supplier added successfully"}, status=status.HTTP_201_CREATED)
+
+# Similarly, create views for Supplier, Instrument, and Department
+
+class InstrumentListView(APIView):
+    def get(self, request):
+        categories = Instrument.objects.all().values_list('name', flat=True)
+        return Response(list(categories), status=status.HTTP_200_OK)
+
+    def post(self, request):
+        name = request.data.get("name")
+        if not name:
+            return Response({"error": "Name is required"}, status=status.HTTP_400_BAD_REQUEST)
+        Instrument.objects.create(name=name)
+        return Response({"message": "Instrument added successfully"}, status=status.HTTP_201_CREATED)
+
+# Similarly, create views for Supplier, Instrument, and Department
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from .models import Category, Supplier, Instrument, Department
+
+class DepartmentListView(APIView):
+    def get(self, request):
+        categories = Department.objects.all().values_list('name', flat=True)
+        return Response(list(categories), status=status.HTTP_200_OK)
+
+    def post(self, request):
+        name = request.data.get("name")
+        if not name:
+            return Response({"error": "Name is required"}, status=status.HTTP_400_BAD_REQUEST)
+        Department.objects.create(name=name)
+        return Response({"message": "Department added successfully"}, status=status.HTTP_201_CREATED)
+
+# Similarly, create views for Supplier, Instrument, and Department
