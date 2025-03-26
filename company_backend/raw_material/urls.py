@@ -64,4 +64,10 @@ urlpatterns = [
      path('api/purchase-orders/', CreatePurchaseOrder.as_view(), name='create-po'),
      path('api/purchase-orders/<str:po_number>/', RetrievePurchaseOrder.as_view(), name='retrieve-po'),
      path('api/purchase-orders/<str:po_number>/pdf/', GeneratePDF.as_view(), name='generate-pdf'),
+
+     path('create-complaint/', CreateMaterialComplaintView.as_view(), name='create-complaint'),
+     path('complaints/', ListMaterialComplaintsView.as_view(), name='list-complaints'),
+     path("heat-suggestions/", get_heat_suggestions, name="heat-suggestions"),
+     path("heat-details/<str:heatno>/", get_heat_details, name="heat-details"),
+     path("update-complaint/<int:pk>/", UpdateMaterialComplaintView.as_view(), name="update-complaint"),
 ]

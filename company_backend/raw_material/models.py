@@ -304,3 +304,46 @@ class Goods(models.Model):
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
     purchase_order = models.ForeignKey(PurchaseOrder, on_delete=models.CASCADE)
+
+
+
+class MaterialComplaint(models.Model):
+    STATUS_CHOICES = [
+        ('Open', 'Open'),
+        ('Closed', 'Closed'),
+    ]
+
+    supplier = models.CharField(max_length=255)
+    heat = models.CharField(max_length=100)
+    grade = models.CharField(max_length=50)
+    dia = models.DecimalField(max_digits=10, decimal_places=2)
+    complaint_date = models.DateField()
+    closing_date = models.DateField(null=True, blank=True)
+    issue = models.TextField()
+    location = models.CharField(max_length=255)
+    remark = models.TextField(blank=True, null=True)
+    component = models.CharField(max_length=100)
+    pices = models.IntegerField()
+    verified_by = models.CharField(max_length=150, blank=True)
+    Complaint_photo = models.FileField(upload_to='RmComplaint/Complaint_photo', null=True, blank=True)
+    d8_report = models.FileField(upload_to='RmComplaint/d8_report', null=True, blank=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Open')
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['supplier']),
+            models.Index(fields=['heat']),
+            models.Index(fields=['grade']),
+            models.Index(fields=['complaint_date']),
+        ]
+
+    def __str__(self):
+        return f"{self.supplier} - {self.heat} - {self.grade}"
+
+    def save(self, *args, **kwargs):
+        # Automatically set status based on d8_report field
+        if self.d8_report:
+            self.status = 'Closed'
+        else:
+            self.status = 'Open'
+        super().save(*args, **kwargs)

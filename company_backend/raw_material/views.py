@@ -2733,3 +2733,76 @@ class GeneratePDF(APIView):
         response = HttpResponse(buffer, content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="{po.po_number}.pdf"'
         return response
+    
+
+
+
+from rest_framework import generics, filters
+from django_filters.rest_framework import DjangoFilterBackend
+from .models import MaterialComplaint
+from .serializers import MaterialComplaintSerializer
+from rest_framework.parsers import MultiPartParser, FormParser
+
+class CreateMaterialComplaintView(generics.CreateAPIView):
+    queryset = MaterialComplaint.objects.all()
+    serializer_class = MaterialComplaintSerializer
+    parser_classes = [MultiPartParser, FormParser]  # Add this line
+    
+    def perform_create(self, serializer):
+        # Handle file saving explicitly if needed
+        instance = serializer.save()
+        
+        # If you need to do additional processing with files:
+        Complaint_photo = self.request.FILES.get('Complaint_photo')
+        if Complaint_photo:
+            instance.Complaint_photo = Complaint_photo
+            instance.save()
+
+from rest_framework.pagination import PageNumberPagination
+
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+class ListMaterialComplaintsView(generics.ListAPIView):
+    queryset = MaterialComplaint.objects.all().order_by('-complaint_date')
+    serializer_class = MaterialComplaintSerializer
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['supplier', 'heat', 'grade', 'dia', 'location', 'component']
+    search_fields = ['issue']
+    ordering_fields = ['complaint_date']
+
+@api_view(["GET"])
+def get_heat_suggestions(request):
+    query = request.GET.get("q", "")
+    if query:
+        heatno = RawMaterial.objects.filter(heatno__icontains=query).values_list("heatno", flat=True).distinct()
+        return Response({"heatno": list(heatno)})
+    return Response({"heatno": []})
+
+@api_view(["GET"])
+def get_heat_details(request, heatno):
+    material = RawMaterial.objects.filter(heatno=heatno).order_by("-date").first()
+    if material:
+        serializer = RawMaterialSerializer(material)
+        return Response(serializer.data)
+    return Response({"error": "Heat not found"}, status=404)
+
+from rest_framework import generics, permissions
+from .models import MaterialComplaint
+from .serializers import MaterialComplaintUpdateSerializer
+from rest_framework_simplejwt.authentication import JWTAuthentication
+
+
+class UpdateMaterialComplaintView(generics.UpdateAPIView):
+    queryset = MaterialComplaint.objects.all()
+    serializer_class = MaterialComplaintUpdateSerializer
+    authentication_classes = []  # Remove authentication
+    permission_classes = []  # Allow anyone to update
+
+    def get_object(self):
+        """Fetch the object using 'pk' from the URL"""
+        complaint_id = self.kwargs.get("pk")
+        return MaterialComplaint.objects.get(id=complaint_id)

@@ -147,3 +147,31 @@ class PurchaseOrderCreateSerializer(serializers.ModelSerializer):
         for good_data in goods_data:
             Goods.objects.create(purchase_order=purchase_order, **good_data)
         return purchase_order
+    
+
+from .models import MaterialComplaint
+
+class MaterialComplaintSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MaterialComplaint
+        fields = '__all__'
+        extra_kwargs = {
+            'verified_by': {'required': False}  # Since it's set automatically
+        }
+
+class MaterialComplaintUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MaterialComplaint
+        fields = ['d8_report', 'remark']
+
+    def update(self, instance, validated_data):
+        # Check if d8_report is being updated and not empty
+        if 'd8_report' in validated_data and validated_data['d8_report']:
+            instance.status = 'Closed'  # Change status to Closed
+
+        # Update instance with new data
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        instance.save()  # Explicitly save the instance
+        return instance

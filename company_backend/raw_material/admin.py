@@ -1,6 +1,6 @@
 from django.contrib import admin
 from import_export.admin import ImportExportModelAdmin
-from .models import dispatch,RawMaterial,Blockmt,BatchTracking,Schedule,Supplier,Grade,Customer,TypeOfMaterial,MaterialType,rmreciveinbatch,Masterlist,Order
+from .models import dispatch,RawMaterial,Blockmt,BatchTracking,Schedule,Supplier,Grade,Customer,TypeOfMaterial,MaterialType,rmreciveinbatch,Masterlist,Order,MaterialComplaint
 
 @admin.register(RawMaterial)
 class RawMaterialAdmin(ImportExportModelAdmin):
@@ -74,4 +74,10 @@ class SupplierAdmin(ImportExportModelAdmin):
 class OrderAdmin(ImportExportModelAdmin):
     list_display = ('supplier','rm_grade' )
     search_fields = ('supplier', 'rm_grade')
+    pass
+
+@admin.register(MaterialComplaint)
+class MaterialComplaintAdmin(ImportExportModelAdmin):
+    list_display = ('supplier','grade' )
+    search_fields = ('supplier', 'grade')
     pass
