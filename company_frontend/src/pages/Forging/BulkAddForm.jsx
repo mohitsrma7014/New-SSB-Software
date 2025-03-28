@@ -37,7 +37,7 @@ const BulkAddForm = () => {
   const shiftOptions = ["DAY", "NIGHT"]; // Dropdown options for shift
   const lineOptions = ["HAMMER1", "HAMMER2", "FFL", "NHF-1000", "1600 TON", "A-SET", "W-SET"]; // Dropdown options for line
   const formanOptions = ["Na","Jitendra", "Ram", "Shambhu","Rajkumar","Lal Chand","Rahul","Satveer","Abbash","Chandan"]; // Dropdown options for forman
-  const lineInchargeOptions = ["Na","Santosh", "Devendra", "Rahul","Neeraj","Somveer","Lal Chand","Satveer","Yogesh"];
+  const lineInchargeOptions = ["Na","Santosh", "Devendra", "Rahul","Neeraj","Somveer","Lal Chand","Satveer","Yogesh","Sanjeev"];
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState([]);
   
 

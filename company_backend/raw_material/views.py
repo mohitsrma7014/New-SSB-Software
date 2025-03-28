@@ -2761,18 +2761,38 @@ class CreateMaterialComplaintView(generics.CreateAPIView):
 from rest_framework.pagination import PageNumberPagination
 
 class StandardResultsSetPagination(PageNumberPagination):
-    page_size = 20
+    page_size = 10
     page_size_query_param = 'page_size'
     max_page_size = 100
 
+from django.db.models import Count
+
 class ListMaterialComplaintsView(generics.ListAPIView):
-    queryset = MaterialComplaint.objects.all().order_by('-complaint_date')
     serializer_class = MaterialComplaintSerializer
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['supplier', 'heat', 'grade', 'dia', 'location', 'component']
     search_fields = ['issue']
     ordering_fields = ['complaint_date']
+
+    def get_queryset(self):
+        return MaterialComplaint.objects.all().order_by(
+            models.Case(
+                models.When(status='Open', then=models.Value(1)),
+                models.When(status='Closed', then=models.Value(2)),
+                default=models.Value(3),
+            ),
+            '-complaint_date'
+        )
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        open_complaints_count = queryset.filter(status="Open").count()
+
+        response = super().list(request, *args, **kwargs)
+        response.data["open_complaints_count"] = open_complaints_count  # Add the count to the response
+        return response
+
 
 @api_view(["GET"])
 def get_heat_suggestions(request):
@@ -2806,3 +2826,308 @@ class UpdateMaterialComplaintView(generics.UpdateAPIView):
         """Fetch the object using 'pk' from the URL"""
         complaint_id = self.kwargs.get("pk")
         return MaterialComplaint.objects.get(id=complaint_id)
+    
+
+class UpcomingDeliveriesList(generics.ListAPIView):
+    serializer_class = OrderSerializer
+    permission_classes = []
+
+    def get_queryset(self):
+        # Get orders that are not delivered (actual_delivery_date is null)
+        # and delivery_date is in the future or today
+        today = timezone.now().date()
+        return Order.objects.filter(
+            actual_delivery_date__isnull=True,
+            delivery_date__gte=today
+        ).order_by('delivery_date')  # Limit to 10 upcoming deliveries
+    
+class OpenComplaintsList(generics.ListAPIView):
+    serializer_class = MaterialComplaintSerializer
+    permission_classes = []
+
+    def get_queryset(self):
+        return MaterialComplaint.objects.filter(
+            status='Open'
+        ).order_by('-complaint_date') # Get 5 most recent open complaints
+    
+
+# views.py
+from django.db.models import Count, Q
+from django.utils import timezone
+from datetime import timedelta
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+
+@api_view(['GET'])
+def dashboard_stats(request):
+    # Calculate date ranges
+    today = timezone.now().date()
+    last_week = today - timedelta(days=7)
+    last_month = today - timedelta(days=30)
+    yesterday = today - timedelta(days=1)
+    
+    # Open Complaints
+    open_complaints = MaterialComplaint.objects.filter(status='Open').count()
+    last_week_open = MaterialComplaint.objects.filter(
+        status='Open',
+        complaint_date__lte=last_week
+    ).count()
+    open_complaints_trend = f"↑ {open_complaints - last_week_open}" if open_complaints > last_week_open else f"↓ {last_week_open - open_complaints}"
+    
+    # Upcoming Deliveries (within next 7 days)
+    upcoming_deliveries = Order.objects.filter(
+        delivery_date__gte=today,
+        delivery_date__lte=today + timedelta(days=7),
+        actual_delivery_date__isnull=True
+    ).count()
+    last_week_upcoming = Order.objects.filter(
+        delivery_date__gte=last_week,
+        delivery_date__lte=last_week + timedelta(days=30),
+        actual_delivery_date__isnull=True
+    ).count()
+    upcoming_trend = f"↑ {upcoming_deliveries - last_week_upcoming}" if upcoming_deliveries > last_week_upcoming else f"↓ {last_week_upcoming - upcoming_deliveries}"
+    
+    # Completed Orders (delivered in last 30 days)
+    completed_orders = Order.objects.filter(
+        actual_delivery_date__gte=last_month,
+        actual_delivery_date__lte=today
+    ).count()
+    prev_month_completed = Order.objects.filter(
+        actual_delivery_date__gte=last_month - timedelta(days=30),
+        actual_delivery_date__lte=last_month
+    ).count()
+    completed_trend = f"↑ {round(((completed_orders - prev_month_completed)/prev_month_completed)*100)}%" if completed_orders > prev_month_completed else f"↓ {round(((prev_month_completed - completed_orders)/prev_month_completed)*100)}%"
+    
+    # Pending Approvals (orders with delivery date passed but not delivered)
+    pending_approvals = Order.objects.filter(
+        delivery_date__lt=today,
+        actual_delivery_date__isnull=True
+    ).count()
+    yesterday_pending = Order.objects.filter(
+        delivery_date__lt=yesterday,
+        actual_delivery_date__isnull=True
+    ).count()
+    pending_trend = f"↑ {pending_approvals - yesterday_pending}" if pending_approvals > yesterday_pending else f"↓ {yesterday_pending - pending_approvals}"
+    
+    return Response({
+        'stats': [
+            {
+                'title': 'Open Complaints',
+                'value': open_complaints,
+                'trend': f"{open_complaints_trend} from last week"
+            },
+            {
+                'title': 'Upcoming Deliveries',
+                'value': upcoming_deliveries,
+                'trend': f"{upcoming_trend} from last week"
+            },
+            {
+                'title': 'Completed Orders',
+                'value': completed_orders,
+                'trend': f"{completed_trend} from last month"
+            },
+            {
+                'title': 'Due  Deliveries',
+                'value': pending_approvals,
+                'trend': f"{pending_trend} from yesterday"
+            }
+        ]
+    })
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.db.models import Count, Q, F, ExpressionWrapper, fields
+from django.db.models.functions import ExtractMonth, ExtractYear
+from datetime import datetime, timedelta
+from .models import MaterialComplaint, Order, Supplier
+from .serializers import SupplierPerformanceSerializer
+
+class SupplierPerformanceRating(APIView):
+    def get(self, request):
+        supplier_name = request.query_params.get('supplier')
+        year = request.query_params.get('year', datetime.now().year)
+        
+        try:
+            year = int(year)
+        except ValueError:
+            return Response({"error": "Invalid year format"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            supplier = Supplier.objects.get(name=supplier_name)
+        except Supplier.DoesNotExist:
+            return Response({"error": "Supplier not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        performance_data = self.calculate_performance_metrics(supplier, year)
+        serializer = SupplierPerformanceSerializer(performance_data, many=True)
+        return Response(serializer.data)
+    
+    def calculate_quality_score(self, complaints_count, no_order_month=False):
+        """Calculate quality score based on complaints count"""
+        if no_order_month:
+            return 100  # Full score if no orders (nothing to complain about)
+        if complaints_count == 0:
+            return 100  # Full score if no complaints
+        elif complaints_count == 1:
+            return 75
+        elif complaints_count == 2:
+            return 50
+        elif complaints_count == 3:
+            return 25
+        else:
+            return 0
+    
+    def calculate_delivery_score(self, delayed_deliveries, no_order_month=False):
+        """Calculate delivery score based on delayed deliveries"""
+        if no_order_month:
+            return 100  # Full score if no orders (nothing to deliver)
+        if delayed_deliveries == 0:
+            return 100  # Full score if no delays
+        elif delayed_deliveries == 1:
+            return 75
+        elif delayed_deliveries == 2:
+            return 50
+        elif delayed_deliveries == 3:
+            return 25
+        else:
+            return 0
+    
+    def calculate_resolution_score(self, total_complaints, resolved_complaints, no_order_month=False):
+        """Calculate resolution score based on resolved complaints"""
+        if no_order_month or total_complaints == 0:
+            return 100  # Full score if no complaints to resolve
+        return (resolved_complaints / total_complaints * 100) if total_complaints > 0 else 100
+    
+    def calculate_performance_metrics(self, supplier, year):
+        current_date = datetime.now().date()
+        current_year = current_date.year
+        current_month = current_date.month
+        
+        performance_data = []
+        
+        for month in range(1, 13):
+            month_start = datetime(year, month, 1).date()
+            month_end = (datetime(year, month, 1) + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+            month_end = month_end.date()
+            
+            month_data = {
+                'month': month,
+                'rating': 0.0,
+                'complaints_count': 0,
+                'on_time_delivery_percentage': 0.0,
+                'complaint_resolution_percentage': 0.0,
+                'quality_score': 0.0,
+                'delivery_score': 0.0,
+                'resolution_score': 0.0,
+                'total_deliveries': 0,
+                'on_time_deliveries': 0,
+                'delayed_deliveries': 0,
+                'no_order_month': False,
+                'is_future_month': False
+            }
+            
+            # Check if this is a future month
+            if (year > current_year) or (year == current_year and month > current_month):
+                month_data.update({
+                    'is_future_month': True,
+                    'rating': 0.0,
+                    'quality_score': 0.0,
+                    'delivery_score': 0.0,
+                    'resolution_score': 0.0,
+                    'complaint_resolution_percentage': 0.0
+                })
+                performance_data.append(month_data)
+                continue
+            
+            # Check if any orders exist for this month
+            orders_exist = Order.objects.filter(
+                supplier=supplier,
+                actual_delivery_date__range=[month_start, month_end],
+                actual_delivery_date__isnull=False
+            ).exists()
+
+            no_order_month = not orders_exist
+            
+            if no_order_month:
+                month_data.update({
+                    'no_order_month': True,
+                    'rating': 5.0,
+                    'quality_score': 100.0,  # Full quality score for no orders
+                    'delivery_score': 100.0,  # Full delivery score for no orders
+                    'resolution_score': 100.0,  # Full resolution score for no orders
+                    'complaint_resolution_percentage': 100.0  # Full resolution percentage
+                })
+                performance_data.append(month_data)
+                continue
+            
+            # Calculate delivery metrics
+            deliveries = Order.objects.filter(
+                supplier=supplier,
+                actual_delivery_date__range=[month_start, month_end],
+                actual_delivery_date__isnull=False
+            ).annotate(
+                is_on_time=Case(
+                    When(delay_days__lte=0, then=Value(1)),
+                    default=Value(0),
+                    output_field=IntegerField()
+                )
+            ).values('is_on_time').annotate(count=Count('id'))
+            
+            total_deliveries = 0
+            on_time_deliveries = 0
+            
+            for delivery in deliveries:
+                if delivery['is_on_time'] == 1:
+                    on_time_deliveries = delivery['count']
+                total_deliveries += delivery['count']
+            
+            delayed_deliveries = total_deliveries - on_time_deliveries
+            
+            # Calculate complaint metrics
+            complaints = MaterialComplaint.objects.filter(
+                supplier=supplier.name,
+                complaint_date__range=[month_start, month_end]
+            )
+            
+            total_complaints = complaints.count()
+            resolved_complaints = complaints.filter(
+                status='Closed',
+                d8_report__isnull=False,
+                closing_date__lte=F('complaint_date') + timedelta(days=15)
+            ).count()
+            
+            # Calculate scores
+            quality_score = self.calculate_quality_score(total_complaints, no_order_month)
+            delivery_score = self.calculate_delivery_score(delayed_deliveries, no_order_month)
+            resolution_score = self.calculate_resolution_score(total_complaints, resolved_complaints, no_order_month)
+            
+            # Calculate overall rating
+            if no_order_month:
+                rating = 0.0  # No rating if no orders
+            elif total_deliveries > 0 or total_complaints > 0:
+                weighted_score = (0.4 * quality_score + 
+                                0.4 * delivery_score + 
+                                0.2 * resolution_score)
+                rating = weighted_score / 20  # Convert to 1-5 scale
+                rating = max(1, min(5, round(rating, 1)))  # Ensure within bounds
+            else:
+                rating = 0.0
+            
+            month_data.update({
+                'month': month_start.strftime('%B'),  # Convert to month name
+                'rating': rating,
+                'complaints_count': total_complaints,
+                'on_time_delivery_percentage': round((on_time_deliveries / total_deliveries * 100), 1) if total_deliveries > 0 else 100.0,
+                'complaint_resolution_percentage': round((resolved_complaints / total_complaints * 100), 1) if total_complaints > 0 else 100.0,
+                'quality_score': quality_score,
+                'delivery_score': delivery_score,
+                'resolution_score': resolution_score,
+                'total_deliveries': total_deliveries,
+                'on_time_deliveries': on_time_deliveries,
+                'delayed_deliveries': delayed_deliveries,
+                'no_order_month': no_order_month,
+                'is_future_month': False
+            })
+            
+            performance_data.append(month_data)
+        
+        return performance_data

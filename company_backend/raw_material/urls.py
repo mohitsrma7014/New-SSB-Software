@@ -70,4 +70,8 @@ urlpatterns = [
      path("heat-suggestions/", get_heat_suggestions, name="heat-suggestions"),
      path("heat-details/<str:heatno>/", get_heat_details, name="heat-details"),
      path("update-complaint/<int:pk>/", UpdateMaterialComplaintView.as_view(), name="update-complaint"),
+     path('api/orders/upcoming-deliveries/', UpcomingDeliveriesList.as_view(), name='upcoming-deliveries'),
+     path('api/complaints/open/', OpenComplaintsList.as_view(), name='open-complaints'),
+     path('api/dashboard-stats/', dashboard_stats, name='dashboard-stats'),
+     path('api/supplier-performance/', SupplierPerformanceRating.as_view(), name='supplier-performance'),
 ]

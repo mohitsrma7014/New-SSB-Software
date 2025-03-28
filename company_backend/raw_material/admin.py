@@ -79,5 +79,5 @@ class OrderAdmin(ImportExportModelAdmin):
 @admin.register(MaterialComplaint)
 class MaterialComplaintAdmin(ImportExportModelAdmin):
     list_display = ('supplier','grade' )
-    search_fields = ('supplier', 'grade')
+    search_fields = ('heat', 'grade')
     pass

@@ -341,9 +341,25 @@ class MaterialComplaint(models.Model):
         return f"{self.supplier} - {self.heat} - {self.grade}"
 
     def save(self, *args, **kwargs):
+                # Automatically set closing_date to 15 days after complaint_date if not manually set
+        if self.complaint_date and not self.closing_date:
+            self.closing_date = self.complaint_date + timedelta(days=15)
+
         # Automatically set status based on d8_report field
         if self.d8_report:
             self.status = 'Closed'
         else:
             self.status = 'Open'
         super().save(*args, **kwargs)
+
+
+class SupplierAuditScore(models.Model):
+    supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE)
+    month = models.DateField()  # Storing as first day of month
+    audit_score = models.DecimalField(max_digits=5, decimal_places=2)  # Percentage score
+    
+    class Meta:
+        unique_together = ('supplier', 'month')
+        indexes = [
+            models.Index(fields=['supplier', 'month']),
+        ]

@@ -175,3 +175,18 @@ class MaterialComplaintUpdateSerializer(serializers.ModelSerializer):
 
         instance.save()  # Explicitly save the instance
         return instance
+    
+class SupplierPerformanceSerializer(serializers.Serializer):
+    month = serializers.CharField()
+    rating = serializers.FloatField()
+    complaints_count = serializers.IntegerField()
+    on_time_delivery_percentage = serializers.FloatField()
+    complaint_resolution_percentage = serializers.FloatField()
+    quality_score = serializers.FloatField()
+    delivery_score = serializers.FloatField()
+    resolution_score = serializers.FloatField()
+    total_deliveries = serializers.IntegerField()
+    on_time_deliveries = serializers.IntegerField()
+    delayed_deliveries = serializers.IntegerField()
+    no_order_month = serializers.BooleanField()
+    is_future_month = serializers.BooleanField()
