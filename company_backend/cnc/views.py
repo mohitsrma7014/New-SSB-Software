@@ -1066,3 +1066,243 @@ class MergedSheetAPI(APIView):
         result = final_df.to_dict(orient='records')
 
         return Response(result, status=status.HTTP_200_OK)
+    
+
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.db.models import Sum, Case, When, F, Value, IntegerField
+from datetime import datetime, timedelta
+from django.utils.timezone import now
+
+class MachiningQualityReportAPIView(APIView):
+    def get(self, request):
+        def parse_date(date_str):
+            try:
+                return datetime.strptime(date_str, "%Y-%m-%d").date()
+            except ValueError:
+                return None
+
+        def calculate_rejection_percent(rejection, production):
+            return round(rejection / production * 100, 2) if production else 0
+
+        def aggregate_data(qs, fields, component_field='component'):
+            return qs.values(component_field).annotate(
+                total_production=Sum("production"),
+                total_target=Sum("target"),
+                total_production_day=Sum(Case(When(shift="day", then=F("production")), default=Value(0), output_field=IntegerField())),
+                total_target_day=Sum(Case(When(shift="day", then=F("target")), default=Value(0), output_field=IntegerField())),
+                total_production_night=Sum(Case(When(shift="night", then=F("production")), default=Value(0), output_field=IntegerField())),
+                total_target_night=Sum(Case(When(shift="night", then=F("target")), default=Value(0), output_field=IntegerField())),
+                **{f'total_{field}': Sum(field) for field in fields}
+            )
+
+        def process_section_data(aggregated_data, masterlist_data, rejection_fields, section_name, qs=None, unique_fields=None):
+            section_data = {}
+            total_production = 0
+            total_target = 0
+            total_production_day = 0
+            total_production_night = 0
+            total_target_day = 0
+            total_target_night = 0
+            total_rejection = 0
+            total_rejection_cost = 0
+
+            for item in aggregated_data:
+                component = item['component']
+                production = item.get('total_production', 0) or 0
+                target = item.get('total_target', 0) or 0
+                production_day = item.get('total_production_day', 0) or 0
+                production_night = item.get('total_production_night', 0) or 0
+                target_day = item.get('total_target_day', 0) or 0
+                target_night = item.get('total_target_night', 0) or 0
+                cost_per_piece = masterlist_data.get(component, {}).get("cost", 0)
+
+                total_production += production
+                total_target += target
+                total_production_day += production_day
+                total_production_night += production_night
+                total_target_day += target_day
+                total_target_night += target_night
+
+                rejection_reasons = {field: item.get(f'total_{field}', 0) or 0 for field in rejection_fields}
+                total_component_rejection = sum(rejection_reasons.values())
+                total_rejection += total_component_rejection
+
+                rejection_cost = total_component_rejection * cost_per_piece
+                total_rejection_cost += rejection_cost
+
+                rejection_percent = calculate_rejection_percent(total_component_rejection, production)
+
+                section_data[component] = {
+                    "production": production,
+                    "target": target,
+                    "production_day": production_day,
+                    "production_night": production_night,
+                    "target_day": target_day,
+                    "target_night": target_night,
+                    f"{section_name}_rejection": total_component_rejection,
+                    "rejection_percent": rejection_percent,
+                    "rejection_cost": rejection_cost,
+                    "customer": masterlist_data.get(component, {}).get("customer", "N/A"),
+                    "cost_per_piece": cost_per_piece,
+                    "rejection_reasons": rejection_reasons,
+                }
+
+                if qs and unique_fields:
+                    for field in unique_fields:
+                        unique_values = list(qs.filter(component=component).values_list(field, flat=True).distinct())
+                        section_data[component][f"unique_{field}s"] = unique_values
+
+            return section_data, total_production, total_target, total_production_day, total_production_night, total_target_day, total_target_night, total_rejection, total_rejection_cost
+
+        # Get filter parameters
+        start_date = request.GET.get("start_date")
+        end_date = request.GET.get("end_date")
+
+        # Default to yesterday if no date provided
+        today = now().date()
+        start_date = parse_date(start_date) or today - timedelta(days=1)
+        end_date = parse_date(end_date) or start_date
+
+        if not start_date or not end_date:
+            return Response({"error": "Invalid date format"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Fetch machining data only
+        machining_qs = machining.objects.filter(date__range=[start_date, end_date])
+        masterlist_data = {m.component: {"customer": m.customer, "cost": m.cost} for m in Masterlist.objects.all()}
+
+        # Define machining rejection fields
+        machining_fields = [
+            'cnc_height', 'cnc_od', 'cnc_bore', 'cnc_groove', 'cnc_dent',
+            'forging_height', 'forging_od', 'forging_bore', 'forging_crack',
+            'forging_dent', 'pre_mc_bore', 'pre_mc_od', 'pre_mc_height'
+        ]
+
+        # CNC MACHINING SECTION
+        cnc_machining_qs = machining_qs.filter(mc_type='CNC')
+        machining_aggregated = cnc_machining_qs.values('component').annotate(
+            total_production=Sum(Case(When(setup='II', then=F("production")), default=Value(0), output_field=IntegerField())),
+            total_target=Sum(Case(When(setup='II', then=F("target")), default=Value(0), output_field=IntegerField())),
+            total_production_day=Sum(Case(When(shift="day", setup='II', then=F("production")), default=Value(0), output_field=IntegerField())),
+            total_target_day=Sum(Case(When(shift="day", setup='II', then=F("target")), default=Value(0), output_field=IntegerField())),
+            total_production_night=Sum(Case(When(shift="night", setup='II', then=F("production")), default=Value(0), output_field=IntegerField())),
+            total_target_night=Sum(Case(When(shift="night", setup='II', then=F("target")), default=Value(0), output_field=IntegerField())),
+            **{f'total_{field}': Sum(field) for field in machining_fields}
+        )
+
+        machining_data, total_machining_production, total_machining_target, total_machining_production_day, \
+        total_machining_production_night, total_machining_target_day, total_machining_target_night, \
+        total_machining_rejection, total_machining_rejection_cost = process_section_data(
+            machining_aggregated, masterlist_data, machining_fields, "machining", 
+            qs=cnc_machining_qs, unique_fields=["machine_no"]
+        )
+
+        # BROACH SECTION
+        broch_aggregated = machining_qs.filter(setup="broch").values('component').annotate(
+            total_production=Sum("production"),
+            total_target=Sum("target"),
+            total_production_day=Sum(Case(When(shift="day", then=F("production")), default=Value(0), output_field=IntegerField())),
+            total_target_day=Sum(Case(When(shift="day", then=F("target")), default=Value(0), output_field=IntegerField())),
+            total_production_night=Sum(Case(When(shift="night", then=F("production")), default=Value(0), output_field=IntegerField())),
+            total_target_night=Sum(Case(When(shift="night", then=F("target")), default=Value(0), output_field=IntegerField())),
+            **{f'total_{field}': Sum(field) for field in machining_fields}
+        )
+        broch_data, total_broch_production, total_broch_target, total_broch_production_day, \
+        total_broch_production_night, total_broch_target_day, total_broch_target_night, \
+        total_broch_rejection, total_broch_rejection_cost = process_section_data(
+            broch_aggregated, masterlist_data, machining_fields, "broch", 
+            qs=machining_qs.filter(setup="broch"), unique_fields=["machine_no"]
+        )
+
+        # VMC SECTION
+        vmv_aggregated = machining_qs.filter(mc_type="vmc").values('component').annotate(
+            total_production=Sum("production"),
+            total_target=Sum("target"),
+            total_production_day=Sum(Case(When(shift="day", then=F("production")), default=Value(0), output_field=IntegerField())),
+            total_target_day=Sum(Case(When(shift="day", then=F("target")), default=Value(0), output_field=IntegerField())),
+            total_production_night=Sum(Case(When(shift="night", then=F("production")), default=Value(0), output_field=IntegerField())),
+            total_target_night=Sum(Case(When(shift="night", then=F("target")), default=Value(0), output_field=IntegerField())),
+            **{f'total_{field}': Sum(field) for field in machining_fields}
+        )
+        vmv_data, total_vmv_production, total_vmv_target, total_vmv_production_day, \
+        total_vmv_production_night, total_vmv_target_day, total_vmv_target_night, \
+        total_vmv_rejection, total_vmv_rejection_cost = process_section_data(
+            vmv_aggregated, masterlist_data, machining_fields, "vmv", 
+            qs=machining_qs.filter(mc_type="vmc"), unique_fields=["machine_no"]
+        )
+
+        # CF SECTION
+        cf_aggregated = machining_qs.filter(mc_type="cf").values('component').annotate(
+            total_production=Sum("production"),
+            total_target=Sum("target"),
+            total_production_day=Sum(Case(When(shift="day", then=F("production")), default=Value(0), output_field=IntegerField())),
+            total_target_day=Sum(Case(When(shift="day", then=F("target")), default=Value(0), output_field=IntegerField())),
+            total_production_night=Sum(Case(When(shift="night", then=F("production")), default=Value(0), output_field=IntegerField())),
+            total_target_night=Sum(Case(When(shift="night", then=F("target")), default=Value(0), output_field=IntegerField())),
+            **{f'total_{field}': Sum(field) for field in machining_fields}
+        )
+        cf_data, total_cf_production, total_cf_target, total_cf_production_day, \
+        total_cf_production_night, total_cf_target_day, total_cf_target_night, \
+        total_cf_rejection, total_cf_rejection_cost = process_section_data(
+            cf_aggregated, masterlist_data, machining_fields, "cf", 
+            qs=machining_qs.filter(mc_type="cf"), unique_fields=["machine_no"]
+        )
+
+        # Calculate rejection percentages
+        machining_rejection_percent = calculate_rejection_percent(total_machining_rejection, total_machining_production)
+        broch_rejection_percent = calculate_rejection_percent(total_broch_rejection, total_broch_production)
+        vmv_rejection_percent = calculate_rejection_percent(total_vmv_rejection, total_vmv_production)
+        cf_rejection_percent = calculate_rejection_percent(total_cf_rejection, total_cf_production)
+
+        return Response({
+            "machining": {
+                "total_production": total_machining_production,
+                "total_target": total_machining_target,
+                "total_production_day": total_machining_production_day,
+                "total_production_night": total_machining_production_night,
+                "total_target_day": total_machining_target_day,
+                "total_target_night": total_machining_target_night,
+                "total_rejection": total_machining_rejection,
+                "rejection_percent": machining_rejection_percent,
+                "total_rejection_cost": total_machining_rejection_cost,
+                "components": machining_data
+            },
+            "broach": {
+                "total_production": total_broch_production,
+                "total_target": total_broch_target,
+                "total_production_day": total_broch_production_day,
+                "total_production_night": total_broch_production_night,
+                "total_target_day": total_broch_target_day,
+                "total_target_night": total_broch_target_night,
+                "total_rejection": total_broch_rejection,
+                "rejection_percent": broch_rejection_percent,
+                "total_rejection_cost": total_broch_rejection_cost,
+                "components": broch_data
+            },
+            "vmc": {
+                "total_production": total_vmv_production,
+                "total_target": total_vmv_target,
+                "total_production_day": total_vmv_production_day,
+                "total_production_night": total_vmv_production_night,
+                "total_target_day": total_vmv_target_day,
+                "total_target_night": total_vmv_target_night,
+                "total_rejection": total_vmv_rejection,
+                "rejection_percent": vmv_rejection_percent,
+                "total_rejection_cost": total_vmv_rejection_cost,
+                "components": vmv_data
+            },
+            "cf": {
+                "total_production": total_cf_production,
+                "total_target": total_cf_target,
+                "total_production_day": total_cf_production_day,
+                "total_production_night": total_cf_production_night,
+                "total_target_day": total_cf_target_day,
+                "total_target_night": total_cf_target_night,
+                "total_rejection": total_cf_rejection,
+                "rejection_percent": cf_rejection_percent,
+                "total_rejection_cost": total_cf_rejection_cost,
+                "components": cf_data
+            }
+        }, status=status.HTTP_200_OK)
