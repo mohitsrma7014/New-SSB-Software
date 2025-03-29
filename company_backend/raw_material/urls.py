@@ -7,6 +7,14 @@ order_list = OrderViewSet.as_view({'get': 'list', 'post': 'create'})
 order_detail = OrderViewSet.as_view({'get': 'retrieve'})
 update_actual_delivery = OrderViewSet.as_view({'patch': 'update_actual_delivery'})
 
+from .views import OrderViewSet
+
+# Create a viewset instance to get the @action method
+order_viewset = OrderViewSet1.as_view({
+    'get': 'download_po'
+})
+
+
 urlpatterns = [
     path('raw_material/create/', views.create_raw_material, name='raw-material-create-api'),
     path('api/raw-materials/', RawMaterialListCreateView.as_view(), name='raw-material-list-create'),
@@ -74,4 +82,8 @@ urlpatterns = [
      path('api/complaints/open/', OpenComplaintsList.as_view(), name='open-complaints'),
      path('api/dashboard-stats/', dashboard_stats, name='dashboard-stats'),
      path('api/supplier-performance/', SupplierPerformanceRating.as_view(), name='supplier-performance'),
+     path('api/orders/download_po/', order_viewset, name='download-po'),  # Change to underscore
+     path('supplier/<int:supplier_id>/', get_supplier_details, name='supplier-details'),
+     path('api/pending-po-approvals/', pending_po_approvals, name='pending_po_approvals'),
+     path('api/update-approval-status/', update_approval_status, name='update_approval_status'),
 ]

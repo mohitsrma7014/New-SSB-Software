@@ -420,6 +420,12 @@ from django.db.models import F, Sum, DecimalField
 #         return JsonResponse(response)
     
 
+from datetime import date, timedelta
+from django.views import View
+from django.db.models import Sum, F
+from django.db.models.fields import DecimalField
+from django.http import JsonResponse
+
 class MonthlyProductionView(View):
     def get(self, request):
         # Get today's date
@@ -435,14 +441,16 @@ class MonthlyProductionView(View):
         else:
             first_day_last_month = today.replace(month=today.month - 1, day=1)
         
-        # Determine the same date in the previous month - 1 day
+        # Calculate the end of the previous month (last day of previous month)
         if today.month == 1:
-            last_month_date = today.replace(year=today.year - 1, month=12) - timedelta(days=1)
+            # If current month is January, previous month is December of previous year
+            end_of_last_month = today.replace(year=today.year - 1, month=12, day=31)
         else:
-            last_month_date = today.replace(month=today.month - 1) - timedelta(days=1)
+            # For other months, get the first day of current month and subtract 1 day to get last day of previous month
+            end_of_last_month = first_day_current_month - timedelta(days=1)
         
-        # Get production data from the start of the last month to the same date in the previous month - 1 day
-        last_month_data = Forging.objects.filter(date__range=(first_day_last_month, last_month_date))
+        # Get production data for the entire previous month
+        last_month_data = Forging.objects.filter(date__range=(first_day_last_month, end_of_last_month))
         last_month_production = last_month_data.aggregate(
             total_production_weight=Sum(F('production') * F('slug_weight'), output_field=DecimalField())
         )['total_production_weight'] or 0
@@ -465,7 +473,8 @@ class MonthlyProductionView(View):
         response = {
             "prev_month_production_ton": round(last_month_production_ton, 2),
             "current_month_production_ton": round(current_month_production_ton, 2),
-            "percentage_difference": round(percentage_diff, 2) if percentage_diff is not None else "N/A"
+            "percentage_difference": round(percentage_diff, 2) if percentage_diff is not None else "N/A",
+            "comparison_note": "Current month data is up to yesterday. Previous month data is for full month."
         }
 
         return JsonResponse(response)

@@ -2217,27 +2217,49 @@ from rest_framework import viewsets
 from .models import Order
 from .serializers import OrderSerializer
 
+from rest_framework.pagination import PageNumberPagination
+from rest_framework import filters
+from django_filters.rest_framework import DjangoFilterBackend
+from django.db import models
+
+class StandardResultsSetPaginationpoorder(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
 
 class OrderViewSet(viewsets.ModelViewSet):
-    queryset = Order.objects.all()
+    queryset = Order.objects.all().order_by(models.Case(
+        models.When(status="Open", then=0),  # Prioritize "open" orders
+        models.When(status="Close", then=1),  # Place "closed" orders after
+        default=2,  # Handle any other status values (if applicable)
+        output_field=models.IntegerField()
+    ), '-po_date')
+
     serializer_class = OrderSerializer
+    pagination_class = StandardResultsSetPaginationpoorder
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = {
+        'supplier': ['exact'],
+        'po_number': ['exact'],
+        'rm_grade': ['exact'],
+        'bar_dia': ['exact'],
+    }
+    search_fields = ['supplier', 'po_number', 'rm_grade', 'bar_dia', 'heat_no']
 
     @action(detail=True, methods=['patch'])
     def update_actual_delivery(self, request, pk=None):
         order = self.get_object()
         actual_date_str = request.data.get('actual_delivery_date')
-        heat_no = request.data.get('heat_no')  # Get heat_no from request
+        heat_no = request.data.get('heat_no')
 
         if actual_date_str:
             try:
-                # Convert string date to datetime.date
                 actual_date = datetime.strptime(actual_date_str, "%Y-%m-%d").date()
                 order.actual_delivery_date = actual_date
                 order.delay_days = (actual_date - order.delivery_date).days
             except ValueError:
                 return Response({'error': 'Invalid date format. Use YYYY-MM-DD'}, status=400)
 
-        # Update heat_no if provided
         if heat_no:
             order.heat_no = heat_no
         
@@ -2248,7 +2270,6 @@ class OrderViewSet(viewsets.ModelViewSet):
             'delay_days': order.delay_days,
             'heat_no': order.heat_no
         })
-    
 
 from .serializers import MasterlistHistorySerializer
 
@@ -3131,3 +3152,600 @@ class SupplierPerformanceRating(APIView):
             performance_data.append(month_data)
         
         return performance_data
+    
+from django.http import HttpResponse
+from io import BytesIO
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from rest_framework import viewsets, filters
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from num2words import num2words
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
+from reportlab.lib.enums import TA_LEFT
+from reportlab.platypus import Image
+from decimal import Decimal
+import hashlib
+from cryptography.hazmat.primitives.asymmetric import rsa, padding
+from cryptography.hazmat.primitives import hashes, serialization
+from PyPDF2 import PdfReader, PdfWriter
+import base64
+from cryptography.hazmat.backends import default_backend
+
+class OrderViewSet1(viewsets.ModelViewSet):
+    queryset = Order.objects.all().select_related('supplier')
+    serializer_class = OrderSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = {
+        'supplier': ['exact'],
+        'po_number': ['exact', 'icontains'],
+        'po_date': ['exact', 'gte', 'lte'],
+        'rm_grade': ['exact', 'icontains'],
+        'rm_standard': ['exact', 'icontains'],
+        'bar_dia': ['exact', 'gte', 'lte'],
+        'delivery_date': ['exact', 'gte', 'lte'],
+    }
+    search_fields = ['po_number', 'rm_grade', 'rm_standard', 'description_of_good']
+    ordering_fields = '__all__'
+    ordering = ['-po_date']
+
+    def generate_digital_signature(self, po_number, approved_by, approval_time):
+        """Generates a consistent digital signature using RSA encryption."""
+        # In production, you should load a persistent private key
+        # For demo, we'll generate a consistent key based on a seed
+        random_generator = hashlib.sha256(
+            f"{settings.SECRET_KEY}{po_number}".encode()
+        ).digest()
+        
+        private_key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=2048,
+            backend=default_backend()
+        )
+        
+        # Combine order details into a consistent message
+        message = f"{po_number}|{approved_by}|{approval_time}".encode()
+
+        # Hash the message
+        digest = hashlib.sha256(message).digest()
+
+        # Sign the hash using the private key
+        signature = private_key.sign(
+            digest,
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.MAX_LENGTH
+            ),
+            hashes.SHA256()
+        )
+
+        return base64.b64encode(signature).decode('utf-8')
+
+    def get_checkmark_image(self):
+        """Returns a green checkmark image with transparency"""
+        try:
+            # You should place a checkmark.png in your media directory
+            checkmark_path = os.path.join(settings.MEDIA_ROOT, 'checkmark-512.png')
+            print(checkmark_path)
+            return Image(checkmark_path, width=40, height=40, hAlign='LEFT')
+        except:
+            # Fallback to drawing a simple checkmark
+            from reportlab.graphics.shapes import Drawing, Line
+            d = Drawing(40, 40)
+            d.add(Line(5, 15, 15, 25, strokeColor=colors.green, strokeWidth=3))
+            d.add(Line(15, 25, 35, 5, strokeColor=colors.green, strokeWidth=3))
+            return d
+
+    @action(detail=False, methods=['get'])
+    def download_po(self, request):
+        # Get the order ID from query params
+        order_id = request.query_params.get('order_id')
+        try:
+            order = Order.objects.get(pk=order_id)
+        except Order.DoesNotExist:
+            return Response({'error': 'Order not found'}, status=404)
+
+        # Create a PDF buffer
+        buffer = BytesIO()
+
+        # Create the PDF object with professional layout
+        doc = SimpleDocTemplate(buffer, pagesize=letter, 
+                            leftMargin=10, rightMargin=10, 
+                            topMargin=10, bottomMargin=15)
+        elements = []
+
+        # Define styles
+        styles = getSampleStyleSheet()
+        logo_path = r"C:\Users\ssben\OneDrive\Desktop\Software\company_backend\media\logo.png"
+
+        # Create an image object
+        logo = Image(logo_path, width=100, height=40, hAlign='LEFT')
+        
+        # Custom styles for modern professional look
+        title_style = ParagraphStyle(
+            'Title',
+            parent=styles['Heading1'],
+            fontSize=16,
+            alignment=1,  # Center
+            spaceAfter=12,
+            textColor=colors.HexColor('#003366'),  # Dark blue
+            fontName='Helvetica-Bold'
+        )
+        
+        company_style = ParagraphStyle(
+            'Company',
+            parent=styles['Normal'],
+            fontSize=10,
+            leading=12,
+            spaceAfter=0,
+            textColor=colors.HexColor('#333333'),
+            fontName='Helvetica-Bold'
+        )
+        
+        company_detail_style = ParagraphStyle(
+            'CompanyDetail',
+            parent=styles['Normal'],
+            fontSize=9,
+            leading=11,
+            spaceAfter=2,
+            textColor=colors.HexColor('#555555')
+        )
+        
+        party_title_style = ParagraphStyle(
+            'PartyTitle',
+            parent=styles['Normal'],
+            fontSize=10,
+            leading=12,
+            spaceAfter=2,
+            textColor=colors.HexColor('#003366'),
+            fontName='Helvetica-Bold',
+            alignment=TA_LEFT  # Left alignment
+        )
+        
+        party_style = ParagraphStyle(
+            'Party',
+            parent=styles['Normal'],
+            fontSize=9,
+            leading=11,
+            spaceAfter=2,
+            textColor=colors.HexColor('#555555'),
+            alignment=TA_LEFT,  # Left alignment
+            leftIndent=20  # Adjust the indentation as needed
+        )
+        
+        section_title_style = ParagraphStyle(
+            'SectionTitle',
+            parent=styles['Heading2'],
+            fontSize=11,
+            leading=13,
+            spaceAfter=6,
+            textColor=colors.HexColor('#003366'),
+            fontName='Helvetica-Bold',
+            underline=True
+        )
+        
+        table_header_style = ParagraphStyle(
+            'TableHeader',
+            parent=styles['Normal'],
+            fontSize=9,
+            textColor=colors.white,
+            alignment=1,  # Center
+            fontName='Helvetica-Bold',
+            backColor=colors.HexColor('#003366')  # Dark blue
+        )
+        
+        table_content_style = ParagraphStyle(
+            'TableContent',
+            parent=styles['Normal'],
+            fontSize=9,
+            textColor=colors.HexColor('#333333'),
+            leading=10,
+            alignment=1  # Center
+        )
+        
+        terms_style = ParagraphStyle(
+            'Terms',
+            parent=styles['Normal'],
+            fontSize=9,
+            leading=11,
+            spaceAfter=4,
+            textColor=colors.HexColor('#333333')
+        )
+        terms_style1 = ParagraphStyle(
+            'Terms',
+            parent=styles['Normal'],
+            fontSize=8,
+            leading=5,
+            spaceAfter=1,
+            textColor=colors.HexColor('#333333')
+        )
+        
+        note_style = ParagraphStyle(
+            'Note',
+            parent=styles['Normal'],
+            fontSize=9,
+            leading=11,
+            spaceAfter=4,
+            textColor=colors.HexColor('#555555'),
+            backColor=colors.HexColor('#f5f5f5')  # Light gray background
+        )
+
+        # Add company header (left aligned)
+        company_info = [
+            Paragraph("S.S.B. ENGINEERS (P) LTD", company_style),
+            Paragraph("133, M.I.A., Alwar-301030 (Rajasthan)-India", company_detail_style),
+            Paragraph("CIN : U74899DL1995PTC073457", company_detail_style),
+            Paragraph("Tel.: 9829218488 | email: ssb_engineers@yahoo.com", company_detail_style),
+            Paragraph("GSTIN : 08AABC55551Q1Z5", company_detail_style),
+        ]
+
+        # Get supplier details or use NA if not available
+        supplier_address = order.supplier_details or "NA"
+        supplier_gstin = order.supplier_gstin or "NA"
+
+        # Add party details (right aligned with more right margin)
+        party_details = [
+            Paragraph("TO:", party_title_style),
+            Paragraph(order.supplier.name, party_style),
+            Paragraph(supplier_address, party_style),
+            Paragraph(f"GSTIN: {supplier_gstin}", party_style),
+            Spacer(1, 8),
+            Paragraph(f"<b>Order No.:</b> {order.po_number}", party_style),
+            Paragraph(f"<b>Date:</b> {order.po_date.strftime('%d-%m-%Y')}", party_style),
+        ]
+
+        elements.append(logo)
+
+        # Add title with horizontal line
+        elements.append(Paragraph("PURCHASE ORDER", title_style))
+
+        # Create a table for the header layout with right padding for party details
+        header_table = Table([
+            [company_info, party_details]
+        ], colWidths=[300, 250])
+        
+        header_table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (1, 0), (1, 0), 20),  # Add right padding to party details
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+        ]))
+        
+        elements.append(header_table)
+
+        # Add horizontal line after title
+        elements.append(HRFlowable(width="100%", thickness=1, lineCap='round', 
+                                color=colors.HexColor('#003366'), spaceAfter=12))
+
+        # Add item description in a professional table
+        item_description = f"""
+        <b>Please find below the details of the ordered Raw Material:</b>
+        """
+        elements.append(Paragraph(item_description, section_title_style))
+        elements.append(Spacer(1, 6))
+
+        # Create table data for items
+        price = order.price
+        amount = order.qty * price
+        
+        table_data = [
+            [
+                Paragraph("S.N.", table_header_style),
+                Paragraph("Description", table_header_style),
+                Paragraph("HSN/SAC", table_header_style),
+                Paragraph("Qty.", table_header_style),
+                Paragraph("Unit", table_header_style),
+                Paragraph("Rate", table_header_style),
+                Paragraph("Amount (₹)", table_header_style)
+            ],
+            [
+                Paragraph("1.", table_content_style),
+                Paragraph(f"Grade: {order.rm_grade}, Dia: {order.bar_dia}MM Dia <br/>Standard: {order.rm_standard}", table_content_style),
+                Paragraph("722830", table_content_style),
+                Paragraph(f"{order.qty:,.2f}", table_content_style),
+                Paragraph("Kgs.", table_content_style),
+                Paragraph(f"₹ {price:,.2f}", table_content_style),
+                Paragraph(f"₹ {amount:,.2f}", table_content_style)
+            ]
+        ]
+
+        # Create item table with modern styling
+        item_table = Table(table_data, colWidths=[50, 120, 70, 100, 40, 60, 100])
+        item_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#003366')),  # Dark blue header
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#dddddd')),  # Light gray grid
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+        
+        elements.append(item_table)
+        elements.append(Spacer(1, 12))
+
+        # Add tax and total calculations with GST logic
+        # In your download_po method, replace the tax calculations with:
+        if supplier_gstin.startswith('08'):
+            # IGST 18%
+            igst_amount = amount * Decimal('0.18')
+            tax_data = [
+                [Paragraph(f"<b>Subtotal:</b>", terms_style), 
+                Paragraph(f"₹ {amount:,.2f}", terms_style)],
+                [Paragraph(f"<b>Add: IGST @ 18%:</b>", terms_style), 
+                Paragraph(f"₹ {igst_amount:,.2f}", terms_style)],
+                [Paragraph(f"<b>Grand Total ({order.qty:,.2f} Kgs):</b>", terms_style), 
+                Paragraph(f"<b>₹ {(amount + igst_amount):,.2f}</b>", terms_style)]
+            ]
+        else:
+            # CGST 9% + SGST 9%
+            cgst_amount = amount * Decimal('0.09')
+            sgst_amount = amount * Decimal('0.09')
+            tax_data = [
+                [Paragraph(f"<b>Subtotal:</b>", terms_style), 
+                Paragraph(f"₹ {amount:,.2f}", terms_style)],
+                [Paragraph(f"<b>Add: CGST @ 9%:</b>", terms_style), 
+                Paragraph(f"₹ {cgst_amount:,.2f}", terms_style)],
+                [Paragraph(f"<b>Add: SGST @ 9%:</b>", terms_style), 
+                Paragraph(f"₹ {sgst_amount:,.2f}", terms_style)],
+                [Paragraph(f"<b>Grand Total ({order.qty:,.2f} Kgs):</b>", terms_style), 
+                Paragraph(f"<b>₹ {(amount + cgst_amount + sgst_amount):,.2f}</b>", terms_style)]
+            ]
+        
+        tax_table = Table(tax_data, colWidths=[400, 100])
+        tax_table.setStyle(TableStyle([
+            ('ALIGN', (-1, 0), (-1, -1), 'RIGHT'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+        
+        elements.append(tax_table)
+        elements.append(Spacer(1, 8))
+
+        # Add amount in words with highlight
+        grand_total = amount + (igst_amount if supplier_gstin.startswith('08') else cgst_amount + sgst_amount)
+        amount_in_words = num2words(grand_total, lang='en_IN').title()
+        elements.append(Paragraph(f"<b>Amount in words:</b> Rupees {amount_in_words} Only", 
+                                ParagraphStyle(
+                                    name='AmountInWords',
+                                    parent=terms_style,
+                                    backColor=colors.HexColor('#f5f5f5'),
+                                    leftIndent=10,
+                                    borderPadding=5,
+                                    spaceAfter=12
+                                )))
+
+        # Add terms and conditions section
+        elements.append(Paragraph("TERMS & CONDITIONS", section_title_style))
+        
+        terms = [
+             f"<b>IDENTIFICATION:</b> One side stickers with Heat No., Grade: {order.rm_grade or 'N/A'}, Dia: {order.bar_dia or 'N/A'} and one side colour coding as per SSB chart<br/><br/>",
+             f"<b>Standard:</b> Material should comply with: {order.rm_standard or 'N/A'}<br/><br/>",
+             "<b>SUPPLY CONDITION:</b> AS HOT ROLLED<br/><br/>",
+              "<b>BAR LENGTH:</b> LENGTH RANGE: MIN. 5.5 MTS TO 6 MTS.<br/><br/>",
+            "<b>PAYMENT TERMS:</b> 60 DAYS DIRECT CREDIT<br/><br/>",
+             "<b>MPI / UT TESTING:</b> 100% INSPECTION DONE BY MPI / UT<br/><br/>",
+              "<b>TEST CERTIFICATE:</b> TO BE ENCLOSED ALONG WITH INVOICE<br/><br/>",
+              "<b>OE CHANGE:</b> W.E.F. 01/10/2024 of ₹2000/-PMT considered. Any changes after that will be adjusted accordingly.<br/><br/>",
+        ]
+        
+        for term in terms:
+            elements.append(Paragraph(f"• {term}", terms_style1))
+        
+        elements.append(Spacer(1, 12))
+        
+        # Add declaration section
+        elements.append(Paragraph("DECLARATION", section_title_style))
+        
+        declaration = """
+        • In case of rejection due to raw material at any stage (Raw material + Value Addition cost + transportation cost) 
+        shall be debited to your account<br/>
+        • Material should Adhere to Standard<br/>
+        • Gas cutting on bar end is not acceptable<br/>
+        • Material Binding should be through Strips only (do not use steel wire)<br/>
+        • Max. Weight variation accepted is 30 kg up to 20 MT & 50 kg above 20 MT<br/>
+        • Any variation above this will be debited to supplier account
+        """
+        elements.append(Paragraph(declaration, note_style))
+        elements.append(Spacer(1, 52))
+
+
+        approval_time = order.approval_time.strftime('%Y-%m-%d %H:%M:%S') if order.approval_time else datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        approved_by = order.approved_by or "Authorized Signatory"
+        signature = self.generate_digital_signature(
+            order.po_number, 
+            approved_by, 
+            order.approval_time
+        )
+
+        checkmark = self.get_checkmark_image()  # Transparent checkmark as background
+
+        # Right side: Released By
+        released_by_text = Paragraph(
+            f'<b>Released By</b><br/>'
+            '_________________________<br/>'
+            f'<b>{order.verified_by or "Name"}</b>',
+            styles["Normal"]
+        )
+
+
+
+        # Signature data with checkmark background
+        signature_data = Table([
+            [checkmark, Paragraph(
+                f'<font size=8>PO: {order.po_number}<br/>'
+                f'Approved By: {approved_by}<br/>'
+                f'Approval Time: {approval_time}<br/>'
+                f'Signature: {signature[:20]}...</font>',
+                styles['Normal']
+            )]
+        ], colWidths=[50, 200])
+
+        # Generate QR code
+        qr_code = None
+        try:
+            from reportlab.graphics.barcode import qr
+            from reportlab.graphics.shapes import Drawing
+            
+            verification_data = (
+                f"PO Verification\n"
+                f"PO Number: {order.po_number}\n"
+                f"Approved By: {approved_by}\n"
+                f"Approval Time: {approval_time}\n"
+                f"Signature: {signature[:20]}..."
+            )
+            
+            qr_code = qr.QrCodeWidget(verification_data)
+            bounds = qr_code.getBounds()
+            width, height = bounds[2] - bounds[0], bounds[3] - bounds[1]
+            
+            d = Drawing(60, 60, transform=[60./width, 0, 0, 60./height, 0, 0])
+            d.add(qr_code)
+        except ImportError:
+            pass
+
+        sign_table_data = [
+            [
+                released_by_text,  # Left column (Released By)
+                signature_data,    # Middle column (Signature)
+                d if qr_code else ""  # Right column (QR Code)
+            ],
+        ]
+
+        # Reduce width of the middle column to bring signature_data closer to QR Code
+        sign_table = Table(sign_table_data, colWidths=[400, 180, 1])
+
+        sign_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (0, -1), 'LEFT'),     # Align "Released By" text to left
+            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),    # Align Signature to the right (closer to QR)
+            ('ALIGN', (2, 0), (2, -1), 'RIGHT'),    # Align QR Code to right
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'), # Ensure vertical alignment
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('LEADING', (0, 0), (-1, -1), 14),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),   # Remove all left padding
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),  # Remove all right padding
+            ('TOPPADDING', (0, 0), (-1, -1), 0),    # Remove all top padding
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0), # Remove all bottom padding
+        ]))
+
+        # Ensure table aligns properly
+        sign_table.hAlign = 'LEFT'  # Adjust to 'RIGHT' if needed
+
+
+
+
+        elements.append(sign_table)
+        elements.append(Spacer(1, 15))
+
+        # Build the PDF
+        doc.build(elements)
+
+        # File response
+        buffer.seek(0)
+        response = HttpResponse(buffer, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="PO_{order.po_number}.pdf"'
+        return response
+            
+@api_view(['GET'])
+def get_supplier_details(request, supplier_id):
+    try:
+        supplier = Supplier.objects.get(id=supplier_id)
+        data = {
+            'supplier_details': supplier.supplier_details,
+            'supplier_gstin': supplier.supplier_gstin,
+            'delivery_days': supplier.delivery_days
+        }
+        return Response(data)
+    except Supplier.DoesNotExist:
+        return Response({'error': 'Supplier not found'}, status=404)
+    
+
+# views.py
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+from django.db.models import Q
+from .models import Order
+from django.utils import timezone
+from datetime import timedelta
+
+@api_view(['GET'])
+def pending_po_approvals(request):
+    # Get pending orders with essential fields only
+    pending_orders = Order.objects.filter(
+        approval_status="Pending"
+    ).select_related('supplier').only(
+        'id',
+        'po_number',
+        'po_date',
+        'supplier',  # Assuming supplier has a 'name' field
+        'rm_grade',
+        'bar_dia',
+        'price',
+        'qty',
+        'delivery_date',
+        'verified_by'
+    ).order_by('po_date')[:50]  # Limit to 50 most recent pending orders
+    
+    # Convert to simple dict format for faster serialization
+    data = [{
+        'id': order.id,
+        'po_number': order.po_number,
+        'po_date': order.po_date.strftime('%Y-%m-%d'),
+        'supplier': order.supplier.name,
+        'grade': order.rm_grade,
+        'dia': order.bar_dia,
+        'price': order.price,
+        'qty': order.qty,
+        'delivery_date': order.delivery_date.strftime('%Y-%m-%d') if order.delivery_date else None,
+        'verified_by': order.verified_by,
+        'days_pending': (timezone.now().date() - order.po_date).days
+    } for order in pending_orders]
+    
+    return Response({'pending_approvals': data})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])  # Ensure user is authenticated
+def update_approval_status(request):
+    order_id = request.data.get('order_id')
+    status = request.data.get('status')  # 'Approved' or 'Rejected'
+    approved_by = request.data.get('approved_by')  # Get from frontend
+    
+    # Validate input data
+    if not all([order_id, status, approved_by]) or status not in ['Approved', 'Rejected']:
+        return Response(
+            {'error': 'Invalid data. Required fields: order_id, status, approved_by'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        order = Order.objects.get(id=order_id)
+        
+        # Update order fields
+        order.approval_status = status
+        order.approved_by = approved_by  # Use the full name from frontend
+        order.approval_time = timezone.now()
+        order.save()
+        
+        return Response({
+            'success': True,
+            'message': f'Order {order.po_number} has been {status.lower()}',
+            'approval_time': order.approval_time
+        })
+        
+    except Order.DoesNotExist:
+        return Response(
+            {'error': 'Order not found'}, 
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
