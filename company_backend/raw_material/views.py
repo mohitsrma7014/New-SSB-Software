@@ -2208,13 +2208,13 @@ class FinancialYearTrendsAPIView(APIView):
         return Response(trends)
 
 from rest_framework.decorators import action
-from .serializers import OrderSerializer
+from .serializers import OrderSerializer,HeatNumberSerializer
 from .models import Order
 from datetime import datetime
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import viewsets
-from .models import Order
+from .models import Order,HeatNumber
 from .serializers import OrderSerializer
 
 from rest_framework.pagination import PageNumberPagination
@@ -2228,13 +2228,16 @@ class StandardResultsSetPaginationpoorder(PageNumberPagination):
     max_page_size = 100
 
 class OrderViewSet(viewsets.ModelViewSet):
-    queryset = Order.objects.all().order_by(models.Case(
-        models.When(status="Open", then=0),  # Prioritize "open" orders
-        models.When(status="Close", then=1),  # Place "closed" orders after
-        default=2,  # Handle any other status values (if applicable)
-        output_field=models.IntegerField()
-    ), '-po_date')
-
+    queryset = Order.objects.all().order_by(
+        models.Case(
+            models.When(status="Open", then=0),          # Highest priority
+            models.When(status="Partially Received", then=1),
+            models.When(status="Closed", then=2),        # Lowest priority
+            default=3,
+            output_field=models.IntegerField()
+        ),
+        '-po_date'
+    )
     serializer_class = OrderSerializer
     pagination_class = StandardResultsSetPaginationpoorder
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
@@ -2243,33 +2246,108 @@ class OrderViewSet(viewsets.ModelViewSet):
         'po_number': ['exact'],
         'rm_grade': ['exact'],
         'bar_dia': ['exact'],
+        'status': ['exact'],
     }
-    search_fields = ['supplier', 'po_number', 'rm_grade', 'bar_dia', 'heat_no']
+    search_fields = ['supplier__name', 'po_number', 'rm_grade', 'bar_dia', 'heat_numbers__heat_no']
 
-    @action(detail=True, methods=['patch'])
-    def update_actual_delivery(self, request, pk=None):
-        order = self.get_object()
-        actual_date_str = request.data.get('actual_delivery_date')
-        heat_no = request.data.get('heat_no')
-
-        if actual_date_str:
-            try:
-                actual_date = datetime.strptime(actual_date_str, "%Y-%m-%d").date()
-                order.actual_delivery_date = actual_date
-                order.delay_days = (actual_date - order.delivery_date).days
-            except ValueError:
-                return Response({'error': 'Invalid date format. Use YYYY-MM-DD'}, status=400)
-
-        if heat_no:
-            order.heat_no = heat_no
+    def partial_update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        force_close = request.data.get('force_close', False)
         
-        order.save()
+        if force_close:
+            # Handle force close logic
+            instance.status = "Closed"
+            instance.force_closed = True
+            actual_delivery_date = request.data.get('actual_delivery_date', timezone.now().date())
+            
+            # Ensure we have a date object
+            if isinstance(actual_delivery_date, str):
+                actual_delivery_date = datetime.strptime(actual_delivery_date, '%Y-%m-%d').date()
+            
+            instance.actual_delivery_date = actual_delivery_date
+            
+            # Calculate delay days
+            if instance.delivery_date:
+                instance.delay_days = (instance.actual_delivery_date - instance.delivery_date).days
+                if instance.delay_days < 0:
+                    instance.delay_days = 0
+            
+            instance.save()
+            serializer = self.get_serializer(instance)
+            return Response(serializer.data)
+        
+        # Default partial update behavior
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
+    def destroy(self, request, *args, **kwargs):
+        """Delete an order and its related heat numbers"""
+        order = self.get_object()
+
+        # Check if the order is already closed (optional restriction)
+        if order.status == "Closed":
+            return Response(
+                {"error": "Cannot delete a closed order."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        order.delete()
+        return Response(
+            {"message": "Order deleted successfully."},
+            status=status.HTTP_204_NO_CONTENT
+        )
+
+    @action(detail=True, methods=['patch', 'post'])
+    def update_delivery(self, request, pk=None):
+        """Update delivery information for an order"""
+        order = self.get_object()
+        heat_no = request.data.get('heat_no')
+        received_qty = request.data.get('received_qty')
+        received_date_str = request.data.get('received_date')
+        delay_reason = request.data.get('delay_reason')
+
+        # Validate required fields
+        if not all([heat_no, received_qty, received_date_str]):
+            return Response({'error': 'heat_no, received_qty, and received_date are required'}, 
+                          status=400)
+
+        try:
+            received_date = datetime.strptime(received_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            return Response({'error': 'Invalid date format. Use YYYY-MM-DD'}, status=400)
+
+        # Create or update heat number
+        heat_number, created = HeatNumber.objects.update_or_create(
+            order=order,
+            heat_no=heat_no,
+            defaults={
+                'received_qty': received_qty,
+                'received_date': received_date,
+                'actual_delivery_date': received_date,  # Default to received_date
+                'delay_reason': delay_reason
+            }
+        )
+
+        # Refresh order data
+        order.refresh_from_db()
+        serializer = self.get_serializer(order)
+        
         return Response({
-            'status': 'updated',
-            'delay_days': order.delay_days,
-            'heat_no': order.heat_no
+            'status': 'delivery_updated',
+            'created': created,
+            'heat_number_id': heat_number.id,
+            'order': serializer.data
         })
+
+    @action(detail=True, methods=['get'])
+    def deliveries(self, request, pk=None):
+        """Get all deliveries for an order"""
+        order = self.get_object()
+        heat_numbers = order.heat_numbers.all().order_by('-received_date')
+        serializer = HeatNumberSerializer(heat_numbers, many=True)
+        return Response(serializer.data)
 
 from .serializers import MasterlistHistorySerializer
 
@@ -3174,7 +3252,15 @@ from cryptography.hazmat.primitives import hashes, serialization
 from PyPDF2 import PdfReader, PdfWriter
 import base64
 from cryptography.hazmat.backends import default_backend
+import hashlib
+import hmac
+import PyPDF2, re
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+import logging
+logger = logging.getLogger(__name__)
 
+@method_decorator(csrf_exempt, name='dispatch')
 class OrderViewSet1(viewsets.ModelViewSet):
     queryset = Order.objects.all().select_related('supplier')
     serializer_class = OrderSerializer
@@ -3192,37 +3278,199 @@ class OrderViewSet1(viewsets.ModelViewSet):
     ordering_fields = '__all__'
     ordering = ['-po_date']
 
-    def generate_digital_signature(self, po_number, approved_by, approval_time):
-        """Generates a consistent digital signature using RSA encryption."""
-        # In production, you should load a persistent private key
-        # For demo, we'll generate a consistent key based on a seed
-        random_generator = hashlib.sha256(
-            f"{settings.SECRET_KEY}{po_number}".encode()
-        ).digest()
+    @action(detail=False, methods=['post'])
+    def verify_po_signature(self, request):
+        """Enhanced verification endpoint with detailed error handling"""
+        try:
+            # 1. Log incoming request details
+            logger.info(f"Request received. Method: {request.method}")
+            logger.info(f"Content-Type: {request.content_type}")
+            logger.info(f"Headers: {dict(request.headers)}")
+            logger.info(f"Files: {dict(request.FILES)}")
+            logger.info(f"POST data: {dict(request.POST)}")
+
+            # 2. Validate file upload
+            if not request.FILES:
+                logger.error("No files in request")
+                return Response({'error': 'No file uploaded'}, 
+                            status=status.HTTP_400_BAD_REQUEST)
+            
+            if 'po_file' not in request.FILES:
+                logger.error("File field 'po_file' missing")
+                return Response({'error': 'File field must be named "po_file"'}, 
+                            status=status.HTTP_400_BAD_REQUEST)
+            
+            po_file = request.FILES['po_file']
+            logger.info(f"Received file: {po_file.name} ({po_file.size} bytes)")
+
+            # 3. Validate file type
+            if not po_file.name.lower().endswith('.pdf'):
+                logger.error("Invalid file type")
+                return Response({'error': 'Only PDF files are accepted'}, 
+                            status=status.HTTP_400_BAD_REQUEST)
+
+            # 4. Verify PDF is readable
+            try:
+                pdf_reader = PyPDF2.PdfReader(po_file)
+                text = "\n".join(page.extract_text() or '' for page in pdf_reader.pages)
+                logger.info(f"Extracted text length: {len(text)} characters")
+                
+                if not text.strip():
+                    logger.error("PDF text extraction failed - empty result")
+                    return Response({'error': 'PDF text extraction failed'}, 
+                                status=status.HTTP_400_BAD_REQUEST)
+                
+                # Log first 200 characters for debugging
+                logger.debug(f"First 200 chars of PDF text:\n{text[:200]}")
+            except Exception as e:
+                logger.error(f"PDF processing error: {str(e)}")
+                return Response({'error': 'Invalid PDF file'}, 
+                            status=status.HTTP_400_BAD_REQUEST)
+
+            # 5. Extract verification fields with multiple possible patterns
+            patterns = {
+                'po_number': [
+                    r'Order\s*No\.?\s*:\s*([^\n\r]+)',  # Matches "Order No.: 2024-25N 88"
+                    r'PO\s*Number\s*:\s*([^\n\r]+)',    # Alternative pattern
+                    r'P\.O\.\s*Number\s*:\s*([^\n\r]+)',# Another alternative
+                    r'Purchase\s*Order\s*:\s*([^\n\r]+)' # Another alternative
+                ],
+                'approved_by': [
+                    r'Approved\s*By\s*:\s*([^\n\r]+)',
+                    r'Authorized\s*By\s*:\s*([^\n\r]+)',
+                    r'Verified\s*By\s*:\s*([^\n\r]+)'
+                ],
+                'approval_time': [
+                    r'Approval\s*Time\s*:\s*([^\n\r]+)',
+                    r'Date\s*:\s*([^\n\r]+)',
+                    r'Time\s*:\s*([^\n\r]+)'
+                ],
+                'signature': [
+                    r'Signature\s*:\s*([^\n\r]+)',
+                    r'Digital\s*Signature\s*:\s*([^\n\r]+)',
+                    r'Verification\s*Code\s*:\s*([^\n\r]+)'
+                ]
+            }
+            
+            extracted = {}
+            for field, field_patterns in patterns.items():
+                for pattern in field_patterns:
+                    match = re.search(pattern, text, re.IGNORECASE)
+                    if match:
+                        extracted[field] = match.group(1).strip()
+                        logger.info(f"Extracted {field} using pattern '{pattern}': {extracted[field]}")
+                        break
+                else:
+                    logger.error(f"Missing {field} in document. Tried patterns: {field_patterns}")
+                    return Response(
+                        {'error': f'Could not find {field.replace("_", " ")} in document'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+            # 6. Database lookup with cleaned PO number
+            try:
+                order = Order.objects.get(po_number__iexact=extracted['po_number'])
+                logger.info(f"Found order: {order.id} with PO: {order.po_number}")
+            except Order.DoesNotExist:
+                cleaned_po_number = extracted['roq_po_number']
+                logger.error(f"Order not found: {extracted['po_number']} (cleaned: {cleaned_po_number})")
+                return Response({
+                    'status': 'invalid',
+                    'message': 'PO number not found in our records',
+                    'searched_number': extracted['po_number'],
+                    'cleaned_number': cleaned_po_number
+                }, status=status.HTTP_404_NOT_FOUND)
+
         
-        private_key = rsa.generate_private_key(
-            public_exponent=65537,
-            key_size=2048,
-            backend=default_backend()
-        )
-        
-        # Combine order details into a consistent message
+
+            # 7. Signature verification - MODIFIED SECTION
+            SECRET_KEY = b"my_super_secret_key_123"
+            
+            # Normalize all values before signature generation
+            po_number = order.po_number.strip()
+            approved_by = (order.approved_by or extracted['approved_by']).strip()
+            
+            # Handle approval time formatting consistently
+            if order.approval_time:
+                approval_time = order.approval_time.strftime('%Y-%m-%d %H:%M:%S')
+            else:
+                # Parse and reformat the extracted time to remove microseconds/timezone if present
+                try:
+                    dt = datetime.strptime(extracted['approval_time'].split('.')[0], '%Y-%m-%d %H:%M:%S')
+                    approval_time = dt.strftime('%Y-%m-%d %H:%M:%S')
+                except:
+                    approval_time = extracted['approval_time'].split('.')[0]  # Fallback to simple truncation
+
+            expected_signature = self.generate_digital_signature(
+                SECRET_KEY,
+                po_number, 
+                approved_by,
+                approval_time
+            )
+
+            # Normalize the extracted signature by removing any whitespace
+            received_signature = extracted['signature'].strip()
+            
+            is_valid = hmac.compare_digest(expected_signature[:20], received_signature[:20])
+            
+            # Add detailed comparison logging
+            logger.info(f"Signature Comparison Details:")
+            logger.info(f"PO Number: '{po_number}'")
+            logger.info(f"Approved By: '{approved_by}'")
+            logger.info(f"Approval Time: '{approval_time}'")
+            logger.info(f"Expected Signature: {expected_signature}")
+            logger.info(f"Received Signature: {received_signature}")
+            logger.info(f"Match Result: {is_valid}")
+
+            # 8. Prepare response - MODIFIED TO ENSURE CONSISTENCY
+            response_data = {
+                'status': 'valid' if is_valid else 'invalid',
+                'message': 'PO signature is valid' if is_valid else 'PO signature is invalid',
+                'po_number': po_number,
+                'document_po_number': extracted['po_number'].strip(),
+                'document_approved_by': extracted['approved_by'].strip(),
+                'document_approval_time': extracted['approval_time'].strip(),
+                'signature_match': is_valid,
+                'system_approved_by': approved_by,
+                'system_approval_time': approval_time,
+                'verification_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'signature_compared': {
+                    'expected': expected_signature,
+                    'received': received_signature,
+                    'match': is_valid
+                }
+            }
+
+            # Add final verification logging
+            logger.info(f"Final Verification Result: {'VALID' if is_valid else 'INVALID'}")
+            logger.info(f"Response Data: {response_data}")
+
+            return Response(response_data)
+
+        except Exception as e:
+            logger.exception("Unexpected error in verification")
+            return Response({
+                'status': 'error',
+                'message': 'Internal server error',
+                'detail': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+    def generate_digital_signature(self, SECRET_KEY ,po_number, approved_by, approval_time):
+        """Generates a consistent HMAC-based signature."""
+        # Ensure approval_time is properly formatted if it's a datetime object
+        if hasattr(approval_time, 'strftime'):
+            approval_time = approval_time.strftime('%Y-%m-%d %H:%M:%S')
+
+        po_number = str(po_number).strip()
+        approved_by = str(approved_by).strip()
+        approval_time = str(approval_time).strip()
         message = f"{po_number}|{approved_by}|{approval_time}".encode()
 
-        # Hash the message
-        digest = hashlib.sha256(message).digest()
+        # Generate an HMAC signature using SHA-256
+        signature = hmac.new(SECRET_KEY, message, hashlib.sha256).digest()
 
-        # Sign the hash using the private key
-        signature = private_key.sign(
-            digest,
-            padding.PSS(
-                mgf=padding.MGF1(hashes.SHA256()),
-                salt_length=padding.PSS.MAX_LENGTH
-            ),
-            hashes.SHA256()
-        )
-
-        return base64.b64encode(signature).decode('utf-8')
+        return base64.b64encode(signature).decode()
 
     def get_checkmark_image(self):
         """Returns a green checkmark image with transparency"""
@@ -3555,12 +3803,15 @@ class OrderViewSet1(viewsets.ModelViewSet):
         elements.append(Spacer(1, 52))
 
 
-        approval_time = order.approval_time.strftime('%Y-%m-%d %H:%M:%S') if order.approval_time else datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        approval_time = order.approval_time if order.approval_time else datetime.now()
         approved_by = order.approved_by or "Authorized Signatory"
+        SECRET_KEY = b"my_super_secret_key_123"
+
         signature = self.generate_digital_signature(
+            SECRET_KEY,
             order.po_number, 
             approved_by, 
-            order.approval_time
+            approval_time  # Pass the datetime object directly
         )
 
         checkmark = self.get_checkmark_image()  # Transparent checkmark as background
@@ -3568,19 +3819,21 @@ class OrderViewSet1(viewsets.ModelViewSet):
         # Right side: Released By
         released_by_text = Paragraph(
             f'<b>Released By</b><br/>'
-            '_________________________<br/>'
-            f'<b>{order.verified_by or "Name"}</b>',
+            
+            f'<b>{order.verified_by or "Name"}</b><br/>'
+            '﹉﹉﹉﹉﹉﹉﹉﹉﹉﹉﹉﹉﹉﹉',
             styles["Normal"]
         )
 
 
 
         # Signature data with checkmark background
+        formatted_time = approval_time.strftime("%Y-%m-%d %H:%M:%S")
         signature_data = Table([
             [checkmark, Paragraph(
                 f'<font size=8>PO: {order.po_number}<br/>'
                 f'Approved By: {approved_by}<br/>'
-                f'Approval Time: {approval_time}<br/>'
+                f'Approval Time: {formatted_time}<br/>'
                 f'Signature: {signature[:20]}...</font>',
                 styles['Normal']
             )]
@@ -3597,7 +3850,7 @@ class OrderViewSet1(viewsets.ModelViewSet):
                 f"PO Number: {order.po_number}\n"
                 f"Approved By: {approved_by}\n"
                 f"Approval Time: {approval_time}\n"
-                f"Signature: {signature[:20]}..."
+                f"Signature: {signature}"
             )
             
             qr_code = qr.QrCodeWidget(verification_data)

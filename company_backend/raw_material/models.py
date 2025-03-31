@@ -3,6 +3,12 @@ import json
 import os
 from datetime import datetime
 from django.utils import timezone
+from django.utils.timezone import now
+from datetime import timedelta
+from django.db.models import Max
+from django.db import models
+from django.db.models import Max, Sum
+from datetime import timedelta, datetime, date
 
 class RawMaterial(models.Model):
     date = models.DateField()
@@ -277,6 +283,7 @@ class Order(models.Model):
     bar_dia = models.FloatField()
     price = models.DecimalField(max_digits=10, decimal_places=3)
     qty = models.IntegerField(blank=True, null=True)
+    force_closed = models.BooleanField(default=False)
     
     delivery_date = models.DateField(blank=True, null=True)
     heat_no = models.CharField(max_length=100, blank=True, null=True)
@@ -292,24 +299,139 @@ class Order(models.Model):
     actual_delivery_date = models.DateField(blank=True, null=True)
     verified_by = models.CharField(max_length=100, blank=True, null=True)
     delay_days = models.IntegerField(blank=True, null=True)
+    completion_date = models.DateField(blank=True, null=True, editable=False)
+
+    class Meta:
+        ordering = ['-po_date']
+        verbose_name = "Purchase Order"
+        verbose_name_plural = "Purchase Orders"
+
+    def __str__(self):
+        return f"{self.po_number} - {self.supplier}"
+
+    @property
+    def received_qty(self):
+        """Calculate total received quantity from all heat numbers"""
+        if not self.pk:  # Avoid querying related objects before saving
+            return 0
+        return self.heat_numbers.aggregate(total=Sum('received_qty'))['total'] or 0
+
+    @property
+    def remaining_qty(self):
+        """Calculate remaining quantity to be received"""
+        return self.qty - self.received_qty
+
+    @property
+    def is_complete(self):
+        """Check if order is fully received"""
+        return self.received_qty >= self.qty
+
+    def calculate_delay_days(self):
+        """
+        Calculate overall order delay based on:
+        - Completion date (date when order was fully received)
+        - Original promised delivery_date
+        """
+        if not self.is_complete or not self.completion_date or not self.delivery_date:
+            return 0
+            
+        delay = (self.completion_date - self.delivery_date).days
+        return max(delay, 0)  # Return 0 if delivery was early
+
+    def update_status_and_completion(self):
+        """Update order status and completion details"""
+        if self.force_closed:
+            self.status = "Closed"
+            return
+            
+        if self.is_complete:
+            self.status = "Closed"
+            # Set completion date to the latest heat number's received date
+            last_delivery = self.heat_numbers.order_by('-received_date').first()
+            if last_delivery:
+                self.completion_date = last_delivery.received_date
+        elif self.received_qty > 0:
+            self.status = "Partially Received"
+        else:
+            self.status = "Open"
+        
+        # Update delay days
+        self.delay_days = self.calculate_delay_days()
 
     def save(self, *args, **kwargs):
-        if not self.delivery_date:
+        # Set delivery date if not provided
+        if not self.delivery_date and self.po_date and hasattr(self, 'supplier'):
             self.delivery_date = self.po_date + timedelta(days=self.supplier.delivery_days)
 
         # Auto-fill approval time when approved_by is filled
         if self.approved_by and not self.approval_time:
             self.approval_time = datetime.now()
 
-        # Set status to "Close" if actual delivery date is provided
-        if self.actual_delivery_date:
-            self.status = "Close"
-        else:
-            self.status = "Open"
+        # Generate PO Number if not already set
+        if not self.po_number and self.po_date:
+            current_year = self.po_date.year
+            current_month = f"{self.po_date.month:02d}"
+            last_po = Order.objects.filter(
+                po_number__startswith=f"{current_year}-{current_month}-R"
+            ).aggregate(Max('po_number'))['po_number__max']
 
+            if last_po:
+                last_number = int(last_po.split("-")[-1][1:])
+                new_number = last_number + 1
+            else:
+                new_number = 1
+            self.po_number = f"{current_year}-{current_month}-R{new_number:03d}"  # 3-digit format
+
+        # Update status and completion details
+        self.update_status_and_completion()
+        
         super().save(*args, **kwargs)
 
-        # Update all previous records where actual_delivery_date is filled
+
+class HeatNumber(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='heat_numbers')
+    heat_no = models.CharField(max_length=100)
+    received_qty = models.IntegerField()
+    received_date = models.DateField()
+    actual_delivery_date = models.DateField(blank=True, null=True)
+    verified_by = models.CharField(max_length=100, blank=True, null=True)
+    delay_days = models.IntegerField(blank=True, null=True, editable=False)
+    delay_reason = models.CharField(max_length=200, blank=True, null=True)
+
+    class Meta:
+        ordering = ['-received_date']
+        verbose_name = "Heat Number Delivery"
+        verbose_name_plural = "Heat Number Deliveries"
+
+    def __str__(self):
+        return f"{self.heat_no} - {self.received_qty} units"
+
+    def calculate_delay_days(self):
+        """Calculate delay for this specific heat number"""
+        if self.actual_delivery_date and self.order.delivery_date:
+            delay = (self.actual_delivery_date - self.order.delivery_date).days
+            return max(delay, 0)  # Return 0 if delivery was early
+        return 0
+
+    def save(self, *args, **kwargs):
+        # Set actual delivery date to received date if not provided
+        if not self.actual_delivery_date:
+            self.actual_delivery_date = self.received_date
+        
+        # Calculate delay days before saving
+        self.delay_days = self.calculate_delay_days()
+        
+        super().save(*args, **kwargs)
+        
+        # Update parent order's status and delay days
+        self.order.save()
+
+    def delete(self, *args, **kwargs):
+        order = self.order
+        super().delete(*args, **kwargs)
+        # Update parent order after deletion
+        order.save()
+
 
 from django.db import models
 

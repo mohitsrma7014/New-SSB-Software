@@ -4,14 +4,21 @@ from . import views
 from .views import *
 
 order_list = OrderViewSet.as_view({'get': 'list', 'post': 'create'})
-order_detail = OrderViewSet.as_view({'get': 'retrieve'})
-update_actual_delivery = OrderViewSet.as_view({'patch': 'update_actual_delivery'})
+order_detail = OrderViewSet.as_view({
+    'get': 'retrieve',
+    'delete': 'destroy',
+    'patch': 'partial_update'  # Add this line
+})
+update_delivery = OrderViewSet.as_view({'patch': 'update_delivery'})
+deliveries = OrderViewSet.as_view({'get': 'deliveries'})
+delete_order = OrderViewSet.as_view({'delete': 'destroy'})
 
 from .views import OrderViewSet
 
 # Create a viewset instance to get the @action method
 order_viewset = OrderViewSet1.as_view({
-    'get': 'download_po'
+    'get': 'download_po',
+    'post': 'verify_po_signature'
 })
 
 
@@ -59,7 +66,7 @@ urlpatterns = [
     path('api/FinancialYearTrendsAPIView/', FinancialYearTrendsAPIView.as_view(), name='FinancialYearTrendsAPIView'),
     path('api/orders/', order_list, name='orders-list'),
     path('api/orders/<int:pk>/', order_detail, name='order-detail'),
-    path('api/orders/<int:pk>/update-delivery/', update_actual_delivery, name='update-actual-delivery'),
+    path('api/orders/<int:pk>/update-delivery/', update_delivery, name='update_delivery'),
 
      path('masterlist/<int:pk>/history/', MasterlistHistoryView.as_view(), name='masterlist-history'),
      path('available-material/', get_remaining_schedule, name='available-material'),
@@ -86,4 +93,6 @@ urlpatterns = [
      path('supplier/<int:supplier_id>/', get_supplier_details, name='supplier-details'),
      path('api/pending-po-approvals/', pending_po_approvals, name='pending_po_approvals'),
      path('api/update-approval-status/', update_approval_status, name='update_approval_status'),
+     path('api/orders/<int:pk>/deliveries/', deliveries, name='deliveries'),
+     path('api/verify-po/', order_viewset, name='verify-po'),
 ]

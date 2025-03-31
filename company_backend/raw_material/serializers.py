@@ -1,6 +1,6 @@
 # serializers.py
 from rest_framework import serializers
-from .models import RawMaterial,Schedule,Order
+from .models import RawMaterial,Schedule,Order,HeatNumber
 
 class RawMaterialSerializer(serializers.ModelSerializer):
     class Meta:
@@ -101,13 +101,42 @@ class MasterListSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-# Serializer
 class OrderSerializer(serializers.ModelSerializer):
     supplier_name = serializers.CharField(source="supplier.name", read_only=True)
+    received_qty = serializers.IntegerField(read_only=True)
+    remaining_qty = serializers.IntegerField(read_only=True)
+    is_complete = serializers.BooleanField(read_only=True)
+    heat_numbers = serializers.SerializerMethodField()
+
     class Meta:
         model = Order
-        fields = '__all__'
-        read_only_fields = ('delivery_date', 'delay_days')
+        fields = [
+            'id', 'supplier', 'supplier_name', 'po_number', 'po_date', 
+            'description_of_good', 'rm_grade', 'rm_standard', 'bar_dia',
+            'price', 'qty', 'delivery_date', 'approval_status', 'approved_by',
+            'approval_time', 'status', 'verified_by', 'delay_days', 
+            'received_qty', 'remaining_qty', 'is_complete', 'heat_numbers',
+            'completion_date','actual_delivery_date','force_closed'
+        ]
+        read_only_fields = (
+            'delivery_date', 'delay_days', 'received_qty', 'remaining_qty',
+            'is_complete', 'completion_date', 'status'
+        )
+
+    def get_heat_numbers(self, obj):
+        """Custom method to get heat numbers data"""
+        heat_numbers = obj.heat_numbers.all().order_by('-received_date')
+        return HeatNumberSerializer(heat_numbers, many=True).data
+
+class HeatNumberSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HeatNumber
+        fields = [
+            'id', 'heat_no', 'received_qty', 'received_date', 
+            'actual_delivery_date', 'verified_by', 'delay_days',
+            'delay_reason'
+        ]
+        read_only_fields = ('delay_days',)
 
 
 from .models import Masterlist
