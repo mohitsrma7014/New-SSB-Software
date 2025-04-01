@@ -465,7 +465,8 @@ class MonthlyProductionView(View):
 
         # Calculate percentage difference
         if last_month_production_ton > 0:
-            percentage_diff = ((current_month_production_ton - last_month_production_ton) / last_month_production_ton) * 100
+            percentage_diff = ((float(current_month_production_ton) - float(last_month_production_ton)) / float(last_month_production_ton)) * 100
+
         else:
             percentage_diff = None  # Cannot calculate percentage difference if previous month's production is zero
 

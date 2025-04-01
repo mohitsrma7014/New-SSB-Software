@@ -972,7 +972,169 @@ def get_fy_trends(request, year=None):
     return JsonResponse(response_data, safe=False)
 
 
+def get_fy_trendscomponent(request, year=None):
+    # Calculate date range for last 12 months
+    end_date = datetime.now().date()
+    start_date = end_date - timedelta(days=365)  # Approximately 12 months back
 
+    # Fetch Masterlist for cost calculation
+    masterlist = {item.component: item.cost for item in Masterlist.objects.all()}
+
+    # Initialize data structure for all months in the last 12 months
+    monthly_data = defaultdict(lambda: {
+        "forging": {"total_production": 0, "total_rejection": 0, "rejection_cost": 0},
+        "cnc": {"total_production": 0, "total_rejection": 0, "rejection_cost": 0},
+        "pre_mc": {"total_production": 0, "total_rejection": 0, "rejection_cost": 0},
+        "overall": {"total_production": 0, "total_rejection": 0, "rejection_cost": 0}
+    })
+
+    # Helper function to calculate rejection cost
+    def calculate_rejection_cost(component, rejection_count):
+        return masterlist.get(component, 0) * rejection_count
+
+    # Process Forging Data
+    forging_data = Forging.objects.filter(date__range=(start_date, end_date))
+    for entry in forging_data:
+        month_year = entry.date.strftime("%m-%Y")
+        # Forging Production
+        monthly_data[month_year]["forging"]["total_production"] += entry.production
+        # Forging Rejection (from Forging model)
+        forging_rejection = (
+            entry.up_setting + entry.half_piercing + entry.full_piercing +
+            entry.ring_rolling + entry.sizing + entry.overheat + entry.bar_crack_pcs
+        )
+        monthly_data[month_year]["forging"]["total_rejection"] += forging_rejection
+        monthly_data[month_year]["forging"]["rejection_cost"] += calculate_rejection_cost(entry.component, forging_rejection)
+
+    # Process Machining Data (CNC and Pre-MC)
+    machining_data = machining.objects.filter(date__range=(start_date, end_date))
+    for entry in machining_data:
+        month_year = entry.date.strftime("%m-%Y")
+        # CNC Rejection
+        cnc_rejection = (
+            entry.cnc_height + entry.cnc_od + entry.cnc_bore +
+            entry.cnc_groove + entry.cnc_dent
+        )
+        if entry.setup == "II":
+            monthly_data[month_year]["cnc"]["total_production"] += entry.production
+        monthly_data[month_year]["cnc"]["total_rejection"] += cnc_rejection
+        monthly_data[month_year]["cnc"]["rejection_cost"] += calculate_rejection_cost(entry.component, cnc_rejection)
+        # Pre-MC Rejection
+        pre_mc_rejection = (
+            entry.pre_mc_height + entry.pre_mc_od + entry.pre_mc_bore
+        )
+        if entry.setup == "II":
+            monthly_data[month_year]["pre_mc"]["total_production"] += entry.production
+        monthly_data[month_year]["pre_mc"]["total_rejection"] += pre_mc_rejection
+        monthly_data[month_year]["pre_mc"]["rejection_cost"] += calculate_rejection_cost(entry.component, pre_mc_rejection)
+        # Forging Rejection (from Machining model)
+        forging_rejection = (
+            entry.forging_height + entry.forging_od + entry.forging_bore +
+            entry.forging_crack + entry.forging_dent
+        )
+        monthly_data[month_year]["forging"]["total_rejection"] += forging_rejection
+        monthly_data[month_year]["forging"]["rejection_cost"] += calculate_rejection_cost(entry.component, forging_rejection)
+
+    # Process Fi Data
+    fi_data = Fi.objects.filter(date__range=(start_date, end_date))
+    for entry in fi_data:
+        month_year = entry.date.strftime("%m-%Y")
+        # CNC Rejection
+        cnc_rejection = (
+            entry.cnc_height + entry.cnc_od + entry.cnc_bore +
+            entry.cnc_groove + entry.cnc_dent
+        )
+        monthly_data[month_year]["cnc"]["total_rejection"] += cnc_rejection
+        monthly_data[month_year]["cnc"]["rejection_cost"] += calculate_rejection_cost(entry.component, cnc_rejection)
+        # Pre-MC Rejection
+        pre_mc_rejection = (
+            entry.pre_mc_height + entry.pre_mc_od + entry.pre_mc_bore
+        )
+        monthly_data[month_year]["pre_mc"]["total_rejection"] += pre_mc_rejection
+        monthly_data[month_year]["pre_mc"]["rejection_cost"] += calculate_rejection_cost(entry.component, pre_mc_rejection)
+        # Forging Rejection (from Fi model)
+        forging_rejection = (
+            entry.forging_height + entry.forging_od + entry.forging_bore +
+            entry.forging_crack + entry.forging_dent
+        )
+        monthly_data[month_year]["forging"]["total_rejection"] += forging_rejection
+        monthly_data[month_year]["forging"]["rejection_cost"] += calculate_rejection_cost(entry.component, forging_rejection)
+
+    # Process Visual Data
+    visual_data = Visual.objects.filter(date__range=(start_date, end_date))
+    for entry in visual_data:
+        month_year = entry.date.strftime("%m-%Y")
+        # CNC Rejection
+        cnc_rejection = (
+            entry.cnc_height + entry.cnc_od + entry.cnc_bore +
+            entry.cnc_groove + entry.cnc_dent
+        )
+        monthly_data[month_year]["cnc"]["total_rejection"] += cnc_rejection
+        monthly_data[month_year]["cnc"]["rejection_cost"] += calculate_rejection_cost(entry.component, cnc_rejection)
+        # Pre-MC Rejection
+        pre_mc_rejection = (
+            entry.pre_mc_height + entry.pre_mc_od + entry.pre_mc_bore
+        )
+        monthly_data[month_year]["pre_mc"]["total_rejection"] += pre_mc_rejection
+        monthly_data[month_year]["pre_mc"]["rejection_cost"] += calculate_rejection_cost(entry.component, pre_mc_rejection)
+        # Forging Rejection (from Visual model)
+        forging_rejection = (
+            entry.forging_height + entry.forging_od + entry.forging_bore +
+            entry.forging_crack + entry.forging_dent
+        )
+        monthly_data[month_year]["forging"]["total_rejection"] += forging_rejection
+        monthly_data[month_year]["forging"]["rejection_cost"] += calculate_rejection_cost(entry.component, forging_rejection)
+
+    # Calculate Overall Metrics
+    for month_year, data in monthly_data.items():
+        data["overall"]["total_production"] = data["forging"]["total_production"]
+        data["overall"]["total_rejection"] = (
+            data["forging"]["total_rejection"] +
+            data["cnc"]["total_rejection"] +
+            data["pre_mc"]["total_rejection"]
+        )
+        data["overall"]["rejection_cost"] = (
+            data["forging"]["rejection_cost"] +
+            data["cnc"]["rejection_cost"] +
+            data["pre_mc"]["rejection_cost"]
+        )
+
+    # Calculate Rejection Percentage
+    for month_year, data in monthly_data.items():
+        for category in ["forging", "cnc", "pre_mc", "overall"]:
+            total_production = data[category]["total_production"]
+            total_rejection = data[category]["total_rejection"]
+            data[category]["rejection_percentage"] = (total_rejection / total_production * 100) if total_production else 0
+
+    # Prepare Final Response - ensure we have exactly 12 months
+    response_data = []
+    current_date = end_date.replace(day=1)  # Start from first day of current month
+    
+    for i in range(12):
+        month_year = current_date.strftime("%m-%Y")
+        data = monthly_data.get(month_year, {
+            "forging": {"total_production": 0, "total_rejection": 0, "rejection_cost": 0, "rejection_percentage": 0},
+            "cnc": {"total_production": 0, "total_rejection": 0, "rejection_cost": 0, "rejection_percentage": 0},
+            "pre_mc": {"total_production": 0, "total_rejection": 0, "rejection_cost": 0, "rejection_percentage": 0},
+            "overall": {"total_production": 0, "total_rejection": 0, "rejection_cost": 0, "rejection_percentage": 0}
+        })
+        response_data.append({
+            "month_year": month_year,
+            "forging": data["forging"],
+            "cnc": data["cnc"],
+            "pre_mc": data["pre_mc"],
+            "overall": data["overall"]
+        })
+        # Move to previous month
+        if current_date.month == 1:
+            current_date = current_date.replace(year=current_date.year - 1, month=12)
+        else:
+            current_date = current_date.replace(month=current_date.month - 1)
+
+    # Reverse to show oldest first
+    response_data.reverse()
+
+    return JsonResponse(response_data, safe=False)
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status

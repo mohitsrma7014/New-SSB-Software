@@ -299,7 +299,7 @@ class Order(models.Model):
     actual_delivery_date = models.DateField(blank=True, null=True)
     verified_by = models.CharField(max_length=100, blank=True, null=True)
     delay_days = models.IntegerField(blank=True, null=True)
-    completion_date = models.DateField(blank=True, null=True, editable=False)
+    completion_date = models.DateField(blank=True, null=True)
 
     class Meta:
         ordering = ['-po_date']
@@ -333,10 +333,11 @@ class Order(models.Model):
         - Original promised delivery_date
         """
         if not self.is_complete or not self.completion_date or not self.delivery_date:
-            return 0
-            
+            return None  # Return None instead of 0
+        
         delay = (self.completion_date - self.delivery_date).days
         return max(delay, 0)  # Return 0 if delivery was early
+
 
     def update_status_and_completion(self):
         """Update order status and completion details"""
