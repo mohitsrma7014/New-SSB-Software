@@ -3718,30 +3718,33 @@ class OrderViewSet1(viewsets.ModelViewSet):
 
         # Add tax and total calculations with GST logic
         # In your download_po method, replace the tax calculations with:
+        cgst_amount = Decimal('0.00')
+        sgst_amount = Decimal('0.00')
+        igst_amount = Decimal('0.00')
         if supplier_gstin.startswith('08'):
-            # IGST 18%
-            igst_amount = amount * Decimal('0.18')
-            tax_data = [
-                [Paragraph(f"<b>Subtotal:</b>", terms_style), 
-                Paragraph(f"₹ {amount:,.2f}", terms_style)],
-                [Paragraph(f"<b>Add: IGST @ 18%:</b>", terms_style), 
-                Paragraph(f"₹ {igst_amount:,.2f}", terms_style)],
-                [Paragraph(f"<b>Grand Total ({order.qty:,.2f} Kgs):</b>", terms_style), 
-                Paragraph(f"<b>₹ {(amount + igst_amount):,.2f}</b>", terms_style)]
-            ]
-        else:
             # CGST 9% + SGST 9%
             cgst_amount = amount * Decimal('0.09')
             sgst_amount = amount * Decimal('0.09')
             tax_data = [
                 [Paragraph(f"<b>Subtotal:</b>", terms_style), 
-                Paragraph(f"₹ {amount:,.2f}", terms_style)],
+                Paragraph(f"\u20B9 {amount:,.2f}", terms_style)],
                 [Paragraph(f"<b>Add: CGST @ 9%:</b>", terms_style), 
-                Paragraph(f"₹ {cgst_amount:,.2f}", terms_style)],
+                Paragraph(f"\u20B9 {cgst_amount:,.2f}", terms_style)],
                 [Paragraph(f"<b>Add: SGST @ 9%:</b>", terms_style), 
-                Paragraph(f"₹ {sgst_amount:,.2f}", terms_style)],
+                Paragraph(f"\u20B9 {sgst_amount:,.2f}", terms_style)],
                 [Paragraph(f"<b>Grand Total ({order.qty:,.2f} Kgs):</b>", terms_style), 
-                Paragraph(f"<b>₹ {(amount + cgst_amount + sgst_amount):,.2f}</b>", terms_style)]
+                Paragraph(f"<b>\u20B9 {(amount + cgst_amount + sgst_amount):,.2f}</b>", terms_style)]
+            ]
+        else:
+            # IGST 18%
+            igst_amount = amount * Decimal('0.18')
+            tax_data = [
+                [Paragraph(f"<b>Subtotal:</b>", terms_style), 
+                Paragraph(f"\u20B9 {amount:,.2f}", terms_style)],
+                [Paragraph(f"<b>Add: IGST @ 18%:</b>", terms_style), 
+                Paragraph(f"\u20B9 {igst_amount:,.2f}", terms_style)],
+                [Paragraph(f"<b>Grand Total ({order.qty:,.2f} Kgs):</b>", terms_style), 
+                Paragraph(f"<b>\u20B9 {(amount + igst_amount):,.2f}</b>", terms_style)]
             ]
         
         tax_table = Table(tax_data, colWidths=[400, 100])
@@ -3776,7 +3779,7 @@ class OrderViewSet1(viewsets.ModelViewSet):
              f"<b>Standard:</b> Material should comply with: {order.rm_standard or 'N/A'}<br/><br/>",
              "<b>SUPPLY CONDITION:</b> AS HOT ROLLED<br/><br/>",
               "<b>BAR LENGTH:</b> LENGTH RANGE: MIN. 5.5 MTS TO 6 MTS.<br/><br/>",
-            "<b>PAYMENT TERMS:</b> 60 DAYS DIRECT CREDIT<br/><br/>",
+            "<b>PAYMENT TERMS:</b> 30 DAYS DIRECT CREDIT<br/><br/>",
              "<b>MPI / UT TESTING:</b> 100% INSPECTION DONE BY MPI / UT<br/><br/>",
               "<b>TEST CERTIFICATE:</b> TO BE ENCLOSED ALONG WITH INVOICE<br/><br/>",
               "<b>OE CHANGE:</b> W.E.F. 01/10/2024 of ₹2000/-PMT considered. Any changes after that will be adjusted accordingly.<br/><br/>",
