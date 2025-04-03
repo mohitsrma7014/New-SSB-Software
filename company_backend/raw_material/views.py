@@ -526,13 +526,15 @@ def create_blockmt(request):
 def get_part_details(request):
     component = request.GET.get('component')
     part = get_object_or_404(Masterlist, component=component)
+
+    component_cycle_time = (part.op_10_time or 0) + (part.op_20_time or 0) + 10
     data = {
         'customer': part.customer,
         'material_grade':part.material_grade,
         'slug_weight':part.slug_weight,
         'bar_dia':part.bar_dia,
         'standerd':part.standerd,
-        'component_cycle_time':part.component_cycle_time,
+        'component_cycle_time':component_cycle_time,
 
     }
     return JsonResponse(data)
@@ -3779,7 +3781,7 @@ class OrderViewSet1(viewsets.ModelViewSet):
              f"<b>Standard:</b> Material should comply with: {order.rm_standard or 'N/A'}<br/><br/>",
              "<b>SUPPLY CONDITION:</b> AS HOT ROLLED<br/><br/>",
               "<b>BAR LENGTH:</b> LENGTH RANGE: MIN. 5.5 MTS TO 6 MTS.<br/><br/>",
-            "<b>PAYMENT TERMS:</b> 30 DAYS DIRECT CREDIT<br/><br/>",
+            f"<b>PAYMENT TERMS:</b> {order.payment_terms or '30'} DAYS DIRECT CREDIT<br/><br/>",
              "<b>MPI / UT TESTING:</b> 100% INSPECTION DONE BY MPI / UT<br/><br/>",
               "<b>TEST CERTIFICATE:</b> TO BE ENCLOSED ALONG WITH INVOICE<br/><br/>",
               "<b>OE CHANGE:</b> W.E.F. 01/10/2024 of ₹2000/-PMT considered. Any changes after that will be adjusted accordingly.<br/><br/>",

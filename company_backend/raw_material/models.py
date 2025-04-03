@@ -284,6 +284,7 @@ class Order(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=3)
     qty = models.IntegerField(blank=True, null=True)
     force_closed = models.BooleanField(default=False)
+    payment_terms = models.IntegerField(blank=True, null=True)
     
     delivery_date = models.DateField(blank=True, null=True)
     heat_no = models.CharField(max_length=100, blank=True, null=True)

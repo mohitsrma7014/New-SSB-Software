@@ -111,12 +111,12 @@ class OrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = [
-            'id', 'supplier', 'supplier_name', 'po_number', 'po_date', 
+            'id', 'supplier', 'supplier_details', 'po_number', 'po_date', 'supplier_gstin','supplier_name',
             'description_of_good', 'rm_grade', 'rm_standard', 'bar_dia',
             'price', 'qty', 'delivery_date', 'approval_status', 'approved_by',
             'approval_time', 'status', 'verified_by', 'delay_days', 
             'received_qty', 'remaining_qty', 'is_complete', 'heat_numbers',
-            'completion_date','actual_delivery_date','force_closed'
+            'completion_date','actual_delivery_date','force_closed','payment_terms'
         ]
         read_only_fields = (
             'delivery_date', 'delay_days', 'received_qty', 'remaining_qty',
