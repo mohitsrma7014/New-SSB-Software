@@ -457,10 +457,78 @@ class CncplanningSerializer(serializers.ModelSerializer):
 class CncplanningViewSet(viewsets.ViewSet):
     
     def list(self, request):
-        """Retrieve all Cncplanning records."""
+        """Retrieve all Cncplanning records with production data."""
         queryset = Cncplanning.objects.all()
-        serializer = CncplanningSerializer(queryset, many=True)
-        return Response(serializer.data)
+
+        # Get date range filters from query parameters
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        
+        if start_date and end_date:
+            queryset = queryset.filter(
+                Target_start_date__lte=end_date,
+                Target_End_date__gte=start_date
+            )
+        
+        # Get all machining records that match any of the CNC planning components
+        machining_records = machining.objects.filter(
+            component__in=[item.component for item in queryset]
+        )
+        
+        results = []
+        for planning in queryset:
+            # Serialize the planning data
+            planning_data = CncplanningSerializer(planning).data
+            
+            # Filter machining records for this component within the target date range
+            component_production = machining_records.filter(
+                component=planning.component,
+                date__gte=planning.Target_start_date,
+                date__lte=planning.Target_End_date
+            )
+            
+            # Calculate CNC production (only count when setup is 'II')
+            cnc_production = component_production.filter(
+                mc_type='cnc',
+                setup='II'
+            ).aggregate(
+                total_production=Sum('production')
+            )['total_production'] or 0
+            
+            # Calculate Broaching production (count all)
+            broaching_production = component_production.filter(
+                mc_type='broch'
+            ).aggregate(
+                total_production=Sum('production')
+            )['total_production'] or 0
+            
+            # Calculate total production (sum of CNC II setup and all broaching)
+            total_production = cnc_production + broaching_production
+            
+            # Calculate completion percentage
+            completion_percentage = 0
+            if planning.target > 0:
+                completion_percentage = round((total_production / planning.target) * 100, 2)
+            
+            # Add production info to the response
+            planning_data['production_data'] = {
+                'total_production': total_production,
+                'cnc_production': cnc_production,
+                'broaching_production': broaching_production,
+                'completion_percentage': completion_percentage,
+                'remaining': max(0, planning.target - total_production),
+                'production_details': list(component_production.values(
+                    'date', 'shift', 'machine_no', 'production', 'mc_type', 'setup'
+                )),
+                'count_notes': {
+                    'cnc': 'Only Setup II production counted',
+                    'broch': 'All production counted'
+                }
+            }
+            
+            results.append(planning_data)
+        
+        return Response(results)
 
     def create(self, request):
         """Create a new Cncplanning record."""
@@ -835,13 +903,15 @@ def get_fy_trends(request, year=None):
     forging_data = Forging.objects.filter(date__range=(fy_start_date, fy_end_date))
     for entry in forging_data:
         month_year = entry.date.strftime("%m-%Y")
-        # Forging Production
-        monthly_data[month_year]["forging"]["total_production"] += entry.production
-        # Forging Rejection (from Forging model)
         forging_rejection = (
             entry.up_setting + entry.half_piercing + entry.full_piercing +
             entry.ring_rolling + entry.sizing + entry.overheat + entry.bar_crack_pcs
         )
+
+        # Actual (net) production
+        net_production = entry.production + forging_rejection
+
+        monthly_data[month_year]["forging"]["total_production"] += net_production
         monthly_data[month_year]["forging"]["total_rejection"] += forging_rejection
         monthly_data[month_year]["forging"]["rejection_cost"] += calculate_rejection_cost(entry.component, forging_rejection)
 
@@ -996,13 +1066,15 @@ def get_fy_trendscomponent(request, year=None):
     forging_data = Forging.objects.filter(date__range=(start_date, end_date))
     for entry in forging_data:
         month_year = entry.date.strftime("%m-%Y")
-        # Forging Production
-        monthly_data[month_year]["forging"]["total_production"] += entry.production
-        # Forging Rejection (from Forging model)
         forging_rejection = (
             entry.up_setting + entry.half_piercing + entry.full_piercing +
             entry.ring_rolling + entry.sizing + entry.overheat + entry.bar_crack_pcs
         )
+
+        # Actual (net) production
+        net_production = entry.production + forging_rejection
+
+        monthly_data[month_year]["forging"]["total_production"] += net_production
         monthly_data[month_year]["forging"]["total_rejection"] += forging_rejection
         monthly_data[month_year]["forging"]["rejection_cost"] += calculate_rejection_cost(entry.component, forging_rejection)
 

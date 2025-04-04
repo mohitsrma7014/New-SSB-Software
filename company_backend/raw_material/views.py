@@ -3374,7 +3374,7 @@ class OrderViewSet1(viewsets.ModelViewSet):
                 order = Order.objects.get(po_number__iexact=extracted['po_number'])
                 logger.info(f"Found order: {order.id} with PO: {order.po_number}")
             except Order.DoesNotExist:
-                cleaned_po_number = extracted['roq_po_number']
+                cleaned_po_number = extracted['po_number']
                 logger.error(f"Order not found: {extracted['po_number']} (cleaned: {cleaned_po_number})")
                 return Response({
                     'status': 'invalid',

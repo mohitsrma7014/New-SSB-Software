@@ -500,7 +500,7 @@ class ProductionTrendAPI(APIView):
 
         # Get the data for the current month and the previous 12 months
         months_data = []
-        for i in range(7):
+        for i in range(10):
             # Calculate the start date for the month (using month shifting)
             start_of_month = start_date.replace(
                 month=start_date.month - i if start_date.month - i > 0 else 12 + (start_date.month - i),
