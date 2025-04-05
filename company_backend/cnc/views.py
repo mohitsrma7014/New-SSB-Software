@@ -457,66 +457,76 @@ class CncplanningSerializer(serializers.ModelSerializer):
 class CncplanningViewSet(viewsets.ViewSet):
     
     def list(self, request):
-        """Retrieve all Cncplanning records with production data."""
+        """Retrieve grouped Cncplanning records with production data."""
         queryset = Cncplanning.objects.all()
 
         # Get date range filters from query parameters
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
-        
+
         if start_date and end_date:
             queryset = queryset.filter(
                 Target_start_date__lte=end_date,
                 Target_End_date__gte=start_date
             )
-        
-        # Get all machining records that match any of the CNC planning components
-        machining_records = machining.objects.filter(
-            component__in=[item.component for item in queryset]
-        )
-        
+
+        # Group by component + line + week (you can adjust group key logic here)
+        grouped_data = defaultdict(list)
+        for item in queryset:
+            week = item.Target_start_date.isocalendar()[1]  # ISO week number
+            group_key = (item.component, item.cnc_line, week)
+            grouped_data[group_key].append(item)
+
+        # Pre-fetch machining records for performance
+        all_components = [item.component for item in queryset]
+        machining_records = machining.objects.filter(component__in=all_components)
+
         results = []
-        for planning in queryset:
-            # Serialize the planning data
-            planning_data = CncplanningSerializer(planning).data
-            
-            # Filter machining records for this component within the target date range
+
+        for (component, line, week), group_items in grouped_data.items():
+            # Combine targets and date ranges
+            total_target = sum(item.target for item in group_items)
+            start_date = min(item.Target_start_date for item in group_items)
+            end_date = max(item.Target_End_date for item in group_items)
+
+            # Serialize first item as base, and override needed fields
+            base_item = group_items[0]
+            planning_data = CncplanningSerializer(base_item).data
+            planning_data['target'] = total_target
+            planning_data['Target_start_date'] = start_date
+            planning_data['Target_End_date'] = end_date
+
+            # Filter machining records for this group
             component_production = machining_records.filter(
-                component=planning.component,
-                date__gte=planning.Target_start_date,
-                date__lte=planning.Target_End_date
+                component=component,
+                date__gte=start_date,
+                date__lte=end_date
             )
-            
-            # Calculate CNC production (only count when setup is 'II')
+
+            # CNC II production
             cnc_production = component_production.filter(
-                mc_type='cnc',
-                setup='II'
-            ).aggregate(
-                total_production=Sum('production')
-            )['total_production'] or 0
-            
-            # Calculate Broaching production (count all)
+                mc_type='cnc', setup='II'
+            ).aggregate(total=Sum('production'))['total'] or 0
+
+            # Broaching production
             broaching_production = component_production.filter(
                 mc_type='broch'
-            ).aggregate(
-                total_production=Sum('production')
-            )['total_production'] or 0
-            
-            # Calculate total production (sum of CNC II setup and all broaching)
+            ).aggregate(total=Sum('production'))['total'] or 0
+
+            # Total
             total_production = cnc_production + broaching_production
-            
-            # Calculate completion percentage
+
             completion_percentage = 0
-            if planning.target > 0:
-                completion_percentage = round((total_production / planning.target) * 100, 2)
-            
-            # Add production info to the response
+            if total_target > 0:
+                completion_percentage = round((total_production / total_target) * 100, 2)
+
+            # Add production info
             planning_data['production_data'] = {
                 'total_production': total_production,
                 'cnc_production': cnc_production,
                 'broaching_production': broaching_production,
                 'completion_percentage': completion_percentage,
-                'remaining': max(0, planning.target - total_production),
+                'remaining': max(0, total_target - total_production),
                 'production_details': list(component_production.values(
                     'date', 'shift', 'machine_no', 'production', 'mc_type', 'setup'
                 )),
@@ -525,9 +535,9 @@ class CncplanningViewSet(viewsets.ViewSet):
                     'broch': 'All production counted'
                 }
             }
-            
+
             results.append(planning_data)
-        
+
         return Response(results)
 
     def create(self, request):
