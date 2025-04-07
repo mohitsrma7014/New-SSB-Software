@@ -3629,7 +3629,7 @@ class OrderViewSet1(viewsets.ModelViewSet):
             Paragraph("133, M.I.A., Alwar-301030 (Rajasthan)-India", company_detail_style),
             Paragraph("CIN : U74899DL1995PTC073457", company_detail_style),
             Paragraph("Tel.: 9829218488 | email: ssb_engineers@yahoo.com", company_detail_style),
-            Paragraph("GSTIN : 08AABC55551Q1Z5", company_detail_style),
+            Paragraph("GSTIN : 08AABCS5551Q1ZS", company_detail_style),
         ]
 
         # Get supplier details or use NA if not available
