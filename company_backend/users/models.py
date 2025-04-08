@@ -22,7 +22,7 @@ class CustomUser(AbstractUser):
         ('Finance', 'Finance'),
         ('Marketing', 'Marketing'),
         ('DepartmentPage','DepartmentPage'),
-        ('Dom','Dom'),
+        ('sos','sos'),
         ('Engineering','Engineering')
     ], default='DepartmentPage')
 
