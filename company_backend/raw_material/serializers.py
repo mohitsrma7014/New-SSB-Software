@@ -113,8 +113,8 @@ class OrderSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'supplier', 'supplier_details', 'po_number', 'po_date', 'supplier_gstin','supplier_name',
             'description_of_good', 'rm_grade', 'rm_standard', 'bar_dia',
-            'price', 'qty', 'delivery_date', 'approval_status', 'approved_by',
-            'approval_time', 'status', 'verified_by', 'delay_days', 
+            'price', 'qty', 'delivery_date', 'approval_status', 'approved_by','note',
+            'approval_time', 'status', 'verified_by', 'delay_days', 'manual_date',
             'received_qty', 'remaining_qty', 'is_complete', 'heat_numbers',
             'completion_date','actual_delivery_date','force_closed','payment_terms'
         ]
@@ -219,3 +219,51 @@ class SupplierPerformanceSerializer(serializers.Serializer):
     delayed_deliveries = serializers.IntegerField()
     no_order_month = serializers.BooleanField()
     is_future_month = serializers.BooleanField()
+
+
+from .models import  MasterlistDocument
+
+class MasterlistDocumentSerializer(serializers.ModelSerializer):
+    document_url = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = MasterlistDocument
+        fields = [
+            'id', 'document_type', 'document_url', 'version', 
+            'uploaded_at', 'is_current', 'remarks'
+        ]
+        read_only_fields = ['id', 'version', 'uploaded_at', 'is_current']
+    
+    def get_document_url(self, obj):
+        if obj.document:
+            return self.context['request'].build_absolute_uri(obj.document.url)
+        return None
+
+class MasterlistSerializer1(serializers.ModelSerializer):
+    documents = MasterlistDocumentSerializer(many=True, read_only=True)
+    
+    class Meta:
+        model = Masterlist
+        fields = [
+            'id', 'component', 'part_name', 'customer', 'drawing_number',
+             'material_grade', 'slug_weight', 'bar_dia', 'process',
+            'ring_weight', 'cost', 'component_cycle_time', 'op_10_time',
+            'op_10_target', 'op_20_time', 'op_20_target', 'cnc_target_remark',
+            'created_at', 'documents'
+        ]
+        read_only_fields = ['id', 'created_at', 'documents']
+
+class MasterlistCreateUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Masterlist
+        fields = [
+            'component', 'part_name', 'customer', 'drawing_number',
+            'material_grade', 'slug_weight', 'bar_dia', 'process',
+            'ring_weight', 'cost', 'component_cycle_time', 'op_10_time',
+            'op_10_target', 'op_20_time', 'op_20_target', 'cnc_target_remark'
+        ]
+
+class DocumentUploadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MasterlistDocument
+        fields = ['document_type', 'document', 'remarks']

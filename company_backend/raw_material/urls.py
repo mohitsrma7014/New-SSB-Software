@@ -95,4 +95,21 @@ urlpatterns = [
      path('api/update-approval-status/', update_approval_status, name='update_approval_status'),
      path('api/orders/<int:pk>/deliveries/', deliveries, name='deliveries'),
      path('api/verify-po/', order_viewset, name='verify-po'),
+
+
+     # Masterlist CRUD endpoints
+    path('masterlistn/', views.masterlist_list_create, name='masterlist-list-create'),
+    path('masterlistn/<int:pk>/', views.masterlist_retrieve_update_delete, name='masterlist-retrieve-update-delete'),
+    
+    # Masterlist history
+    path('masterlistn/<int:pk>/history/', views.masterlist_history, name='masterlist-history'),
+    
+    # Document endpoints
+    path('masterlistn/<int:masterlist_pk>/documents/', views.document_list, name='document-list'),
+    path('masterlistn/<int:masterlist_pk>/documents/upload/', views.document_upload, name='document-upload'),
+    path('masterlistn/<int:masterlist_pk>/documents/<str:doc_type>/', views.document_type_history, name='document-type-history'),
+    path('masterlistn/<int:masterlist_pk>/documents/<int:doc_pk>/set-current/', views.document_set_current, name='document-set-current'),
+
+
+     
 ]

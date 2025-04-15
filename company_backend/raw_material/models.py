@@ -9,6 +9,7 @@ from django.db.models import Max
 from django.db import models
 from django.db.models import Max, Sum
 from datetime import timedelta, datetime, date
+from django.core.exceptions import ValidationError
 
 class RawMaterial(models.Model):
     date = models.DateField()
@@ -216,11 +217,45 @@ class Masterlist(models.Model):
     op_20_time = models.IntegerField(blank=True, null=True)
     op_20_target = models.IntegerField(blank=True, null=True)
     cnc_target_remark = models.CharField(max_length=500,blank=True, null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
     
     history = HistoricalRecords()
 
     def __str__(self):
         return f"{self.component} - {self.customer} - {self.drawing_number}"
+    def save(self, *args, **kwargs):
+        # Any custom logic before saving can go here
+        super().save(*args, **kwargs)
+    
+    def update_document(self, document_type, new_document, remarks=None):
+        """
+        Helper method to update a document with version tracking
+        """
+        # Mark old version as not current
+        MasterlistDocument.objects.filter(
+            masterlist=self,
+            document_type=document_type,
+            is_current=True
+        ).update(is_current=False)
+        
+        # Get next version number
+        last_version = MasterlistDocument.objects.filter(
+            masterlist=self,
+            document_type=document_type
+        ).order_by('-version').first()
+        
+        new_version = last_version.version + 1 if last_version else 1
+        
+        # Create new version
+        return MasterlistDocument.objects.create(
+            masterlist=self,
+            document_type=document_type,
+            document=new_document,
+            version=new_version,
+            is_current=True,
+            remarks=remarks
+        )
     
 
 class Schedule(models.Model):
@@ -240,6 +275,38 @@ class Schedule(models.Model):
 
     def __str__(self):
         return f"{self.component} - {self.weight}"
+    
+class MasterlistDocument(models.Model):
+
+    
+    masterlist = models.ForeignKey('Masterlist', on_delete=models.CASCADE, related_name='documents')
+    document_type = models.CharField(max_length=50)
+    document = models.FileField(upload_to='masterlist_documents/')
+    version = models.PositiveIntegerField(default=1)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    is_current = models.BooleanField(default=True)
+    remarks = models.CharField(max_length=255, blank=True, null=True)
+    
+    history = HistoricalRecords()
+    
+    def clean(self):
+        # Ensure only one current version per document type per masterlist
+        if self.is_current:
+            existing_current = MasterlistDocument.objects.filter(
+                masterlist=self.masterlist,
+                document_type=self.document_type,
+                is_current=True
+            ).exclude(pk=self.pk if self.pk else None)
+            
+            if existing_current.exists():
+                raise ValidationError(f"There is already a current version for {self.get_document_type_display()}")
+    
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return f"{self.masterlist} - {self.get_document_type_display()} (v{self.version})"
     
 class dispatch(models.Model):
     date = models.DateField()
@@ -277,6 +344,8 @@ class Order(models.Model):
     supplier_gstin = models.CharField(max_length=100, blank=True, null=True)
     po_number = models.CharField(max_length=100, blank=True, null=True)
     po_date = models.DateField()
+    manual_date = models.CharField(max_length=100,blank=True, null=True)
+    note = models.CharField(max_length=100,blank=True, null=True)
     description_of_good = models.CharField(max_length=100, blank=True, null=True)
     rm_grade = models.CharField(max_length=100)
     rm_standard = models.CharField(max_length=100)
@@ -440,6 +509,7 @@ from django.db import models
 class PurchaseOrder(models.Model):
     po_number = models.CharField(max_length=20, unique=True)
     date = models.DateField(auto_now_add=True)
+    
     supplier_name = models.CharField(max_length=255)
     user = models.CharField(max_length=100, blank=True, null=True)  # Store username or user identifier
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)

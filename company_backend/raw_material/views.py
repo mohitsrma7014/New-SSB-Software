@@ -3702,7 +3702,7 @@ class OrderViewSet1(viewsets.ModelViewSet):
         ]
 
         # Create item table with modern styling
-        item_table = Table(table_data, colWidths=[50, 120, 70, 100, 40, 60, 100])
+        item_table = Table(table_data, colWidths=[50, 160, 70, 100, 40, 60, 100])
         item_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#003366')),  # Dark blue header
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
@@ -3716,7 +3716,46 @@ class OrderViewSet1(viewsets.ModelViewSet):
         ]))
         
         elements.append(item_table)
-        elements.append(Spacer(1, 12))
+        # Define custom styles
+        note_label_style = ParagraphStyle(
+            'NoteLabel',
+            parent=styles['Normal'],
+            fontSize=9,
+            textColor=colors.black,
+            fontName='Helvetica-Bold',
+        )
+
+        note_text_style = ParagraphStyle(
+            'NoteText',
+            parent=styles['Normal'],
+            fontSize=9,
+            textColor=colors.white,
+            fontName='Helvetica',
+        )
+
+        # Example note content
+        note_text = Paragraph('<b>Note:</b> <font name="Helvetica">%s</font>' % order.note, note_label_style)
+
+        # Footer table data as one left-aligned row spanning all columns
+        footer_data = [[note_text]]
+
+        # Create the footer table (spanning full width)
+        footer_table = Table(footer_data)  # Adjust width as needed
+
+        # Set footer style (using different color, e.g., dark green)
+        footer_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#D5F3FE')),  # Dark green background
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),  # Align to the left
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ]))
+        elements.append(footer_table)
+
 
         # Add tax and total calculations with GST logic
         # In your download_po method, replace the tax calculations with:
@@ -3781,10 +3820,12 @@ class OrderViewSet1(viewsets.ModelViewSet):
              f"<b>Standard:</b> Material should comply with: {order.rm_standard or 'N/A'}<br/><br/>",
              "<b>SUPPLY CONDITION:</b> AS HOT ROLLED<br/><br/>",
               "<b>BAR LENGTH:</b> LENGTH RANGE: MIN. 5.5 MTS TO 6 MTS.<br/><br/>",
+             
             f"<b>PAYMENT TERMS:</b> {order.payment_terms or '30'} DAYS DIRECT CREDIT<br/><br/>",
              "<b>MPI / UT TESTING:</b> 100% INSPECTION DONE BY MPI / UT<br/><br/>",
               "<b>TEST CERTIFICATE:</b> TO BE ENCLOSED ALONG WITH INVOICE<br/><br/>",
               "<b>OE CHANGE:</b> W.E.F. 01/10/2024 of ₹2000/-PMT considered. Any changes after that will be adjusted accordingly.<br/><br/>",
+               f"<b>Delivery Time:</b> {order.manual_date or 'Na'}",
         ]
         
         for term in terms:
@@ -4007,3 +4048,199 @@ def update_approval_status(request):
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+    
+# raw_material/views.py
+from django.shortcuts import get_object_or_404
+from django.http import JsonResponse
+from .models import Masterlist, MasterlistDocument
+from .serializers import (
+    MasterlistSerializer1,
+    MasterlistCreateUpdateSerializer,
+    MasterlistDocumentSerializer,
+    DocumentUploadSerializer
+)
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework import status
+
+@api_view(['GET', 'POST'])
+@permission_classes([])
+def masterlist_list_create(request):
+    if request.method == 'GET':
+        # Pagination - use offset/limit instead of page
+        offset = int(request.query_params.get('offset', 0))
+        limit = int(request.query_params.get('limit', 20))
+        
+        # Initialize queryset
+        queryset = Masterlist.objects.all().order_by('-created_at')
+        
+        # Search filter
+        search = request.query_params.get('search', '')
+        if search:
+            queryset = queryset.filter(
+                Q(component__icontains=search) |
+                Q(part_name__icontains=search) |
+                Q(drawing_number__icontains=search)
+            )
+        
+        # Additional filters
+        component = request.query_params.get('component')
+        if component:
+            queryset = queryset.filter(component__icontains=component)
+
+        customer = request.query_params.get('customer')
+        if customer:
+            queryset = queryset.filter(customer__icontains=customer)
+            
+        material_grade = request.query_params.get('material_grade')
+        if material_grade:
+            queryset = queryset.filter(material_grade__icontains=material_grade)
+            
+        process = request.query_params.get('process')
+        if process:
+            queryset = queryset.filter(process__iexact=process)
+        
+        # Get distinct values for filter options
+        customers = Masterlist.objects.order_by().values_list('customer', flat=True).distinct()
+        materials = Masterlist.objects.order_by().values_list('material_grade', flat=True).distinct()
+        processes = Masterlist.objects.order_by().values_list('process', flat=True).distinct()
+        
+        # Use select_related/prefetch_related for related data
+        queryset = queryset.prefetch_related('documents')
+
+        # Get total count before pagination
+        total_count = queryset.count()
+        
+        # Apply pagination using offset/limit
+        queryset = queryset[offset:offset + limit]
+        
+        serializer = MasterlistSerializer1(queryset, many=True, context={'request': request})
+        return Response({
+            'results': serializer.data,
+            'count': total_count,
+            'filter_options': {
+                'customers': list(customers),
+                'materials': list(materials),
+                'processes': list(processes)
+            }
+        })
+    
+    elif request.method == 'POST':
+        serializer = MasterlistCreateUpdateSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return JsonResponse(serializer.data, status=status.HTTP_201_CREATED)
+        return JsonResponse(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([])
+def masterlist_retrieve_update_delete(request, pk):
+    masterlist = get_object_or_404(Masterlist, pk=pk)
+    
+    if request.method == 'GET':
+        serializer = MasterlistSerializer1(masterlist, context={'request': request})
+        return JsonResponse(serializer.data)
+    
+    elif request.method == 'PUT':
+        serializer = MasterlistCreateUpdateSerializer(masterlist, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return JsonResponse(serializer.data)
+        return JsonResponse(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    elif request.method == 'DELETE':
+        masterlist.delete()
+        return JsonResponse({'message': 'Masterlist deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+
+@api_view(['GET'])
+@permission_classes([])
+def masterlist_history(request, pk):
+    masterlist = get_object_or_404(Masterlist, pk=pk)
+    history = masterlist.history.all()
+    data = [{
+        'history_date': h.history_date,
+        'history_user': h.history_user.username if h.history_user else None,
+        'changes': [{
+            'field': change.field,
+            'old': change.old,
+            'new': change.new
+        } for change in h.diff_against(h.prev_record).changes] if h.prev_record else [],
+        'version': h.history_id
+    } for h in history]
+    return JsonResponse(data, safe=False)
+
+@api_view(['GET'])
+@permission_classes([])
+def document_list(request, masterlist_pk):
+    documents = MasterlistDocument.objects.filter(masterlist_id=masterlist_pk)
+    serializer = MasterlistDocumentSerializer(documents, many=True, context={'request': request})
+    return JsonResponse(serializer.data, safe=False)
+
+@api_view(['POST'])
+@permission_classes([])
+def document_upload(request, masterlist_pk):
+    masterlist = get_object_or_404(Masterlist, pk=masterlist_pk)
+    serializer = DocumentUploadSerializer(data=request.data)
+    
+    if serializer.is_valid():
+        # Mark old version as not current if exists
+        MasterlistDocument.objects.filter(
+            masterlist=masterlist,
+            document_type=serializer.validated_data['document_type'],
+            is_current=True
+        ).update(is_current=False)
+        
+        # Get next version number
+        last_version = MasterlistDocument.objects.filter(
+            masterlist=masterlist,
+            document_type=serializer.validated_data['document_type']
+        ).order_by('-version').first()
+        
+        new_version = last_version.version + 1 if last_version else 1
+        
+        # Create new document
+        document = MasterlistDocument.objects.create(
+            masterlist=masterlist,
+            document_type=serializer.validated_data['document_type'],
+            document=serializer.validated_data['document'],
+            version=new_version,
+            is_current=True,
+            remarks=serializer.validated_data.get('remarks')
+        )
+        
+        return JsonResponse(
+            MasterlistDocumentSerializer(document, context={'request': request}).data,
+            status=status.HTTP_201_CREATED
+        )
+    
+    return JsonResponse(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET'])
+@permission_classes([])
+def document_type_history(request, masterlist_pk, doc_type):
+    documents = MasterlistDocument.objects.filter(
+        masterlist_id=masterlist_pk,
+        document_type=doc_type
+    ).order_by('-version')
+    serializer = MasterlistDocumentSerializer(documents, many=True, context={'request': request})
+    return JsonResponse(serializer.data, safe=False)
+
+@api_view(['POST'])
+@permission_classes([])
+def document_set_current(request, masterlist_pk, doc_pk):
+    document = get_object_or_404(MasterlistDocument, pk=doc_pk, masterlist_id=masterlist_pk)
+    
+    # Mark all documents of this type as not current
+    MasterlistDocument.objects.filter(
+        masterlist_id=masterlist_pk,
+        document_type=document.document_type,
+        is_current=True
+    ).update(is_current=False)
+    
+    # Set this document as current
+    document.is_current = True
+    document.save()
+    
+    return JsonResponse(
+        MasterlistDocumentSerializer(document, context={'request': request}).data
+    )
