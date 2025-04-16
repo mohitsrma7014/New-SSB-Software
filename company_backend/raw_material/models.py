@@ -203,12 +203,19 @@ class Masterlist(models.Model):
     component = models.CharField(max_length=100)
     part_name= models.CharField(max_length=100)
     customer = models.CharField(max_length=100)
+    location = models.CharField(max_length=100,blank=True, null=True)
+    drawing_rev_number = models.CharField(max_length=100,blank=True, null=True)
+    drawing_rev_date = models.CharField(max_length=100,blank=True, null=True)
+    forging_line = models.CharField(max_length=100,blank=True, null=True)
     drawing_number = models.IntegerField()
     standerd= models.CharField(max_length=100)
     material_grade= models.CharField(max_length=100)
     slug_weight = models.DecimalField(max_digits=10, decimal_places=2)
     bar_dia = models.CharField(max_length=100)
-    process = models.CharField(max_length=100)
+    ht_process = models.CharField(max_length=100)
+    hardness_required = models.CharField(max_length=100,blank=True, null=True)
+    running_status = models.CharField(max_length=100,blank=True, null=True)
+    packing_condition = models.CharField(max_length=100,blank=True, null=True)
     ring_weight = models.DecimalField(max_digits=10, decimal_places=2)
     cost = models.DecimalField(max_digits=10, decimal_places=2)
     component_cycle_time = models.IntegerField()
@@ -219,6 +226,7 @@ class Masterlist(models.Model):
     cnc_target_remark = models.CharField(max_length=500,blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
+    verified_by = models.CharField(max_length=150, blank=True, null=True)  # New field to store the username
     
     history = HistoricalRecords()
 
@@ -281,11 +289,13 @@ class MasterlistDocument(models.Model):
     
     masterlist = models.ForeignKey('Masterlist', on_delete=models.CASCADE, related_name='documents')
     document_type = models.CharField(max_length=50)
+    catagory = models.CharField(max_length=50,blank=True, null=True)
     document = models.FileField(upload_to='masterlist_documents/')
     version = models.PositiveIntegerField(default=1)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     is_current = models.BooleanField(default=True)
     remarks = models.CharField(max_length=255, blank=True, null=True)
+    verified_by = models.CharField(max_length=150, blank=True, null=True) 
     
     history = HistoricalRecords()
     
@@ -299,14 +309,14 @@ class MasterlistDocument(models.Model):
             ).exclude(pk=self.pk if self.pk else None)
             
             if existing_current.exists():
-                raise ValidationError(f"There is already a current version for {self.get_document_type_display()}")
+                raise ValidationError(f"There is already a current version for {self.document_type}")
     
     def save(self, *args, **kwargs):
         self.clean()
         super().save(*args, **kwargs)
     
     def __str__(self):
-        return f"{self.masterlist} - {self.get_document_type_display()} (v{self.version})"
+        return f"{self.masterlist} - {self.document_type} (v{self.version})"
     
 class dispatch(models.Model):
     date = models.DateField()

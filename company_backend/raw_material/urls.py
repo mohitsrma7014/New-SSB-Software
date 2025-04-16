@@ -109,6 +109,7 @@ urlpatterns = [
     path('masterlistn/<int:masterlist_pk>/documents/upload/', views.document_upload, name='document-upload'),
     path('masterlistn/<int:masterlist_pk>/documents/<str:doc_type>/', views.document_type_history, name='document-type-history'),
     path('masterlistn/<int:masterlist_pk>/documents/<int:doc_pk>/set-current/', views.document_set_current, name='document-set-current'),
+    path('api/masterlist/missing_documents_report/', views.missing_documents_report, name='missing_documents_report'),
 
 
      

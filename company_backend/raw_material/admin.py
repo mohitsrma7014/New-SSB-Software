@@ -89,3 +89,12 @@ class HeatNumberAdmin(ImportExportModelAdmin):
     search_fields = ('heat_no', 'verified_by')
     pass
 
+
+from simple_history.admin import SimpleHistoryAdmin
+from .models import MasterlistDocument
+
+@admin.register(MasterlistDocument)
+class MasterlistDocumentAdmin(SimpleHistoryAdmin):
+    list_display = ('masterlist', 'document_type', 'version', 'is_current', 'uploaded_at')
+    list_filter = ('document_type', 'is_current', 'uploaded_at')
+    search_fields = ('document_type', 'remarks', 'verified_by')

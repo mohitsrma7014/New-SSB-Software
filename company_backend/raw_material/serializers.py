@@ -230,7 +230,7 @@ class MasterlistDocumentSerializer(serializers.ModelSerializer):
         model = MasterlistDocument
         fields = [
             'id', 'document_type', 'document_url', 'version', 
-            'uploaded_at', 'is_current', 'remarks'
+            'uploaded_at', 'is_current', 'remarks','verified_by' ,'catagory',
         ]
         read_only_fields = ['id', 'version', 'uploaded_at', 'is_current']
     
@@ -246,10 +246,11 @@ class MasterlistSerializer1(serializers.ModelSerializer):
         model = Masterlist
         fields = [
             'id', 'component', 'part_name', 'customer', 'drawing_number',
-             'material_grade', 'slug_weight', 'bar_dia', 'process',
+             'material_grade', 'slug_weight', 'bar_dia', 'ht_process',
             'ring_weight', 'cost', 'component_cycle_time', 'op_10_time',
             'op_10_target', 'op_20_time', 'op_20_target', 'cnc_target_remark',
-            'created_at', 'documents'
+            'created_at', 'documents','verified_by','packing_condition','running_status',
+            'hardness_required','drawing_rev_date','drawing_rev_number','location','forging_line'
         ]
         read_only_fields = ['id', 'created_at', 'documents']
 
@@ -258,12 +259,13 @@ class MasterlistCreateUpdateSerializer(serializers.ModelSerializer):
         model = Masterlist
         fields = [
             'component', 'part_name', 'customer', 'drawing_number',
-            'material_grade', 'slug_weight', 'bar_dia', 'process',
+            'material_grade', 'slug_weight', 'bar_dia', 'ht_process',
             'ring_weight', 'cost', 'component_cycle_time', 'op_10_time',
-            'op_10_target', 'op_20_time', 'op_20_target', 'cnc_target_remark'
+            'op_10_target', 'op_20_time', 'op_20_target', 'cnc_target_remark','verified_by','packing_condition','running_status',
+            'hardness_required','drawing_rev_date','drawing_rev_number','location','forging_line'
         ]
 
 class DocumentUploadSerializer(serializers.ModelSerializer):
     class Meta:
         model = MasterlistDocument
-        fields = ['document_type', 'document', 'remarks']
+        fields = ['document_type', 'catagory','document', 'remarks','verified_by']

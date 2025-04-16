@@ -2693,35 +2693,29 @@ class MonthlyConsumptionGraphAPIView(APIView):
 
         print(f"Filtering for Year: {year}, Month: {month}")  # Debugging
 
-        # Extract year and month from block_mt_id (Format: FP-YYYYMMDD-XX-XX)
-        raw_materials = Blockmt.objects.annotate(
-            record_year=Substr("block_mt_id", 4, 4),   # Extract YYYY (2025)
-            record_month=Substr("block_mt_id", 8, 2)   # Extract MM (03)
-        ).filter(
-            record_year=str(year),  # Convert year to string
-            record_month=str(month).zfill(2)  # Convert month to string & ensure it's '03' not '3'
+        # Filter BatchTracking records by created_at year and month
+        raw_materials = BatchTracking.objects.filter(
+            created_at__year=year,
+            created_at__month=month
         )
-
 
         if not raw_materials.exists():
             return Response({"message": "No records found for the given month/year"}, status=status.HTTP_404_NOT_FOUND)
 
-        # First graph: Group by supplier, sum the weight, and convert to tonnage
+        # First graph: Group by supplier, sum the kg_qty (already in kg)
         supplier_data = (
             raw_materials.values("supplier")
-            .annotate(total_weight=Sum("weight"))
-            .annotate(total_tonnage=F("total_weight") / 1000)  # Convert kg to tonnes
+            .annotate(total_tonnage=Sum("kg_qty") / 1000)  # Convert kg to tonnes
             .values("supplier", "total_tonnage")
         )
 
-        # Second graph: Group by grade and dia, sum the weight, and convert to tonnage
+        # Second graph: Group by material_grade and bardia, sum the kg_qty
         grade_dia_data = (
             raw_materials.annotate(
-                grade_dia=Concat(F("grade"), Value("-"), F("dia"), output_field=CharField())
+                grade_dia=Concat(F("material_grade"), Value("-"), F("bardia"), output_field=CharField())
             )
             .values("grade_dia")
-            .annotate(total_weight=Sum("weight"))
-            .annotate(total_tonnage=F("total_weight") / 1000)  # Convert kg to tonnes
+            .annotate(total_tonnage=Sum("kg_qty") / 1000)  # Convert kg to tonnes
             .values("grade_dia", "total_tonnage")
         )
 
@@ -4096,14 +4090,14 @@ def masterlist_list_create(request):
         if material_grade:
             queryset = queryset.filter(material_grade__icontains=material_grade)
             
-        process = request.query_params.get('process')
-        if process:
-            queryset = queryset.filter(process__iexact=process)
+        ht_process = request.query_params.get('ht_process')
+        if ht_process:
+            queryset = queryset.filter(ht_process__iexact=ht_process)
         
         # Get distinct values for filter options
         customers = Masterlist.objects.order_by().values_list('customer', flat=True).distinct()
         materials = Masterlist.objects.order_by().values_list('material_grade', flat=True).distinct()
-        processes = Masterlist.objects.order_by().values_list('process', flat=True).distinct()
+        ht_processes = Masterlist.objects.order_by().values_list('ht_process', flat=True).distinct()
         
         # Use select_related/prefetch_related for related data
         queryset = queryset.prefetch_related('documents')
@@ -4121,7 +4115,7 @@ def masterlist_list_create(request):
             'filter_options': {
                 'customers': list(customers),
                 'materials': list(materials),
-                'processes': list(processes)
+                'ht_processes': list(ht_processes)
             }
         })
     
@@ -4244,3 +4238,57 @@ def document_set_current(request, masterlist_pk, doc_pk):
     return JsonResponse(
         MasterlistDocumentSerializer(document, context={'request': request}).data
     )
+
+
+@api_view(['GET'])
+@permission_classes([])
+def missing_documents_report(request):
+    # Expected document types (match your frontend constant)
+    EXPECTED_DOCUMENT_TYPES = [
+        'Design Records',
+        'Authorized Engineering Change Documents',
+        'Customer Engineering Approval',
+        'Design Failure Modes and Effects Analysis (DFMEA)',
+        'Process Flow Diagram',
+        'Process Failure Modes and Effects Analysis (PFMEA)',
+        'Control Plan',
+        'Measurement Systems Analysis (MSA)',
+        'Dimensional Results',
+        'Records of Material / Performance Test Results',
+        'Initial Process Studies',
+        'Qualified Laboratory Documentation',
+        'Appearance Approval Report (AAR)',
+        'Sample Production Parts',
+        'Master Sample',
+        'Checking Aids',
+        'Customer-Specific Requirements',
+        'Part Submission Warrant (PSW)',
+    ]
+    
+    # Get all masterlist items with their documents
+    masterlists = Masterlist.objects.prefetch_related('documents').all()
+    
+    report = []
+    
+    for masterlist in masterlists:
+        # Get all document types that exist for this component
+        existing_doc_types = set(masterlist.documents.values_list('document_type', flat=True))
+        
+        # Find missing document types
+        missing_docs = [doc_type for doc_type in EXPECTED_DOCUMENT_TYPES if doc_type not in existing_doc_types]
+        
+        if missing_docs:
+            report.append({
+                'component_id': masterlist.id,
+                'component_name': masterlist.component,
+                'part_name': masterlist.part_name,
+                'drawing_number': masterlist.drawing_number,
+                'customer': masterlist.customer,
+                'missing_documents': missing_docs,
+                'missing_count': len(missing_docs)
+            })
+    
+    # Sort by components with most missing documents first
+    report.sort(key=lambda x: x['missing_count'], reverse=True)
+    
+    return JsonResponse({'report': report})
