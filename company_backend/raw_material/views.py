@@ -2694,9 +2694,12 @@ class MonthlyConsumptionGraphAPIView(APIView):
         print(f"Filtering for Year: {year}, Month: {month}")  # Debugging
 
         # Filter BatchTracking records by created_at year and month
-        raw_materials = BatchTracking.objects.filter(
-            created_at__year=year,
-            created_at__month=month
+        raw_materials = BatchTracking.objects.annotate(
+            record_year=Substr("batch_number", 4, 4),   # Extract YYYY (2025)
+            record_month=Substr("batch_number", 8, 2)   # Extract MM (03)
+        ).filter(
+            record_year=str(year),  # Convert year to string
+            record_month=str(month).zfill(2)  # Convert month to string & ensure it's '03' not '3'
         )
 
         if not raw_materials.exists():
@@ -4082,6 +4085,10 @@ def masterlist_list_create(request):
         if component:
             queryset = queryset.filter(component__icontains=component)
 
+        running_status = request.query_params.get('running_status')
+        if running_status:
+            queryset = queryset.filter(running_status__icontains=running_status)
+
         customer = request.query_params.get('customer')
         if customer:
             queryset = queryset.filter(customer__icontains=customer)
@@ -4175,6 +4182,7 @@ def document_list(request, masterlist_pk):
 def document_upload(request, masterlist_pk):
     masterlist = get_object_or_404(Masterlist, pk=masterlist_pk)
     serializer = DocumentUploadSerializer(data=request.data)
+    print("Incoming request data:", request.data)
     
     if serializer.is_valid():
         # Mark old version as not current if exists
@@ -4199,7 +4207,8 @@ def document_upload(request, masterlist_pk):
             document=serializer.validated_data['document'],
             version=new_version,
             is_current=True,
-            remarks=serializer.validated_data.get('remarks')
+            remarks=serializer.validated_data.get('remarks'),
+            verified_by=serializer.validated_data.get('verified_by')
         )
         
         return JsonResponse(
@@ -4254,7 +4263,7 @@ def missing_documents_report(request):
         'Control Plan',
         'Measurement Systems Analysis (MSA)',
         'Dimensional Results',
-        'Records of Material / Performance Test Results',
+        'Records of Material & Performance Test Results',
         'Initial Process Studies',
         'Qualified Laboratory Documentation',
         'Appearance Approval Report (AAR)',
@@ -4266,7 +4275,10 @@ def missing_documents_report(request):
     ]
     
     # Get all masterlist items with their documents
-    masterlists = Masterlist.objects.prefetch_related('documents').all()
+    masterlists = Masterlist.objects.prefetch_related('documents').filter(
+        running_status="Running"
+    )
+
     
     report = []
     
