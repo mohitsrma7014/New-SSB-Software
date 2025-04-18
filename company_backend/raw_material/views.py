@@ -92,12 +92,10 @@ from .serializers import ComponentSerializer
 
 @api_view(['GET'])
 def component_suggestion(request):
-    # Get search parameters from the query string
     component_query = request.query_params.get('component', None)
     customer_query = request.query_params.get('customer', None)
     part_name_query = request.query_params.get('part_name', None)
 
-    # Filtering logic based on available query params
     queryset = Masterlist.objects.all()
 
     if component_query:
@@ -107,11 +105,10 @@ def component_suggestion(request):
     if part_name_query:
         queryset = queryset.filter(part_name__icontains=part_name_query)
 
-    # Serialize only the component field
-    serializer = ComponentSerializer(queryset, many=True)
-
-    # Extract the 'component' values from the serialized data and return it in a list
-    components = [item['component'] for item in serializer.data]
+    components = [
+        f"{obj.component}-NPD" if obj.running_status == 'NPD' else obj.component
+        for obj in queryset
+    ]
 
     return Response(components)
 
@@ -478,6 +475,9 @@ def get_operation_target(request):
     setup = request.GET.get('setup', '').strip().upper()  # Setup should be 'I' or 'II'
     
     # Fetch the masterlist entry for the given component
+    if component.endswith('-npd'):
+        component = component[:-4]
+
     try:
         masterlist_entry = Masterlist.objects.get(component__iexact=component)
     except Masterlist.DoesNotExist:
@@ -525,18 +525,23 @@ def create_blockmt(request):
 
 def get_part_details(request):
     component = request.GET.get('component')
+
+    # Remove '-NPD' suffix if present
+    if component and component.endswith('-NPD'):
+        component = component[:-4]  # remove last 4 characters
+
     part = get_object_or_404(Masterlist, component=component)
 
     component_cycle_time = (part.op_10_time or 0) + (part.op_20_time or 0) + 10
     data = {
         'customer': part.customer,
-        'material_grade':part.material_grade,
-        'slug_weight':part.slug_weight,
-        'bar_dia':part.bar_dia,
-        'standerd':part.standerd,
-        'component_cycle_time':component_cycle_time,
-
+        'material_grade': part.material_grade,
+        'slug_weight': part.slug_weight,
+        'bar_dia': part.bar_dia,
+        'standerd': part.standerd,
+        'component_cycle_time': component_cycle_time,
     }
+
     return JsonResponse(data)
 
 from django.shortcuts import render
@@ -4304,3 +4309,234 @@ def missing_documents_report(request):
     report.sort(key=lambda x: x['missing_count'], reverse=True)
     
     return JsonResponse({'report': report})
+
+
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+from .models import RawMaterial, Blockmt, dispatch
+from django.db.models import Sum, Count
+from django.db.models import Count, Min, Max
+from django.contrib.postgres.aggregates import ArrayAgg
+from .aggregates import GroupConcat  # Adjust the path if needed
+from urllib.parse import unquote
+@api_view(['GET'])
+def invoice_list(request):
+    # Get filter parameters
+    invoice_no = request.GET.get('invoice_no', '')
+    heat_no = request.GET.get('heat_no', '')
+    supplier = request.GET.get('supplier', '')
+    customer = request.GET.get('customer', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    material_type = request.GET.get('material_type', '')
+    page = request.GET.get('page', 1)
+    per_page = request.GET.get('per_page', 20)
+
+    # Base query
+    query = Q()
+    if invoice_no:
+        query &= Q(invoice_no__icontains=invoice_no)
+    if heat_no:
+        query &= Q(heatno__icontains=heat_no)
+    if supplier:
+        query &= Q(supplier__icontains=supplier)
+    if customer:
+        query &= Q(customer__icontains=customer)
+    if date_from:
+        query &= Q(date__gte=date_from)
+    if date_to:
+        query &= Q(date__lte=date_to)
+    if material_type:
+        query &= Q(type_of_material__icontains=material_type)
+
+    # Get all unique invoices with summary data
+    invoices = RawMaterial.objects.filter(query).values('invoice_no').annotate(
+        total_weight=Sum('weight'),
+        heat_count=Count('heatno', distinct=True),
+        first_date=Min('date'),
+        last_date=Max('date'),
+        material_type=Max('type_of_material'),
+        total_cost=Sum('weight') * Sum('cost_per_kg'),
+        heat_numbers=GroupConcat('heatno')
+    ).order_by('-first_date')
+
+    # Pagination
+    paginator = Paginator(invoices, per_page)
+    try:
+        page_obj = paginator.page(page)
+    except:
+        page_obj = paginator.page(1)
+
+    # Get supplier and customer for each invoice
+    invoice_data = []
+    for inv in page_obj.object_list:
+        first_item = RawMaterial.objects.filter(invoice_no=inv['invoice_no']).first()
+        invoice_data.append({
+            'invoice_no': inv['invoice_no'],
+            'supplier': first_item.supplier if first_item else '',
+            'customer': first_item.customer if first_item else '',
+            'total_weight': inv['total_weight'],
+            'heat_count': inv['heat_count'],
+            'heat_numbers': inv['heat_numbers'],
+            'date_range': f"{inv['first_date']} to {inv['last_date']}",
+            'first_date': inv['first_date'],
+            'last_date': inv['last_date'],
+            'material_type': inv['material_type'],
+            'total_cost': inv['total_cost'] if first_item and first_item.cost_per_kg else None
+        })
+
+    return Response({
+        'invoices': invoice_data,
+        'total_pages': paginator.num_pages,
+        'current_page': page_obj.number,
+        'total_items': paginator.count
+    }, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+def invoice_details(request, invoice_no):
+    try:
+        # Get raw materials for this invoice
+        # Decode the URL-encoded invoice number
+        decoded_invoice_no = unquote(invoice_no)
+
+        raw_materials = RawMaterial.objects.filter(invoice_no=decoded_invoice_no)
+        
+        if not raw_materials.exists():
+            return Response(
+                {"error": f"No records found for invoice {invoice_no}"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Get all unique heat numbers from the raw materials
+        heat_numbers = list(set(rm.heatno for rm in raw_materials))
+        
+        # Prepare response data
+        response_data = {
+            "invoice_no": invoice_no,
+            "supplier": raw_materials[0].supplier,
+            "customer": raw_materials[0].customer,
+            "material_type": raw_materials[0].type_of_material,
+            "heat_numbers": heat_numbers,
+            "raw_materials": [],
+            "block_materials": [],
+            "dispatch_details": [],
+            "production_details": [],
+            "cost_summary": {
+                "total_raw_material_cost": 0,
+                "total_production_value": 0,
+                "total_dispatch_value": 0
+            }
+        }
+        
+        # Raw Material Details with cost calculation
+        for rm in raw_materials:
+            rm_cost = float(rm.weight) * float(rm.cost_per_kg) if rm.cost_per_kg else 0
+            response_data["raw_materials"].append({
+                "date": rm.date,
+                "supplier": rm.supplier,
+                "grade": rm.grade,
+                "customer": rm.customer,
+                "heatno": rm.heatno,
+                "dia": rm.dia,
+                "weight": float(rm.weight),
+                "invoice_no": rm.invoice_no,
+                "type_of_material": rm.type_of_material,
+                "rack_no": rm.rack_no,
+                "location": rm.location,
+                "cost_per_kg": float(rm.cost_per_kg) if rm.cost_per_kg else None,
+                "total_cost": rm_cost,
+                "is_job_work": not bool(rm.cost_per_kg)  # Job work if no cost
+            })
+            response_data["cost_summary"]["total_raw_material_cost"] += rm_cost
+        
+        # Block Material Details with component cost
+        block_materials = Blockmt.objects.filter(heatno__in=heat_numbers)
+        for bm in block_materials:
+            try:
+                component_cost = Masterlist.objects.get(component=bm.component).cost
+            except Masterlist.DoesNotExist:
+                component_cost = 0
+            
+            response_data["block_materials"].append({
+                "block_mt_id": bm.block_mt_id,
+                "component": bm.component,
+                "customer": bm.customer,
+                "supplier": bm.supplier,
+                "grade": bm.grade,
+                "heatno": bm.heatno,
+                "dia": bm.dia,
+                "pices": bm.pices,
+                "weight": float(bm.weight),
+                "created_at": bm.created_at,
+                "standerd": bm.standerd,
+                "line": bm.line,
+                "component_cost": component_cost,
+                "total_cost": bm.pices * component_cost
+            })
+        
+        # Production Details from Forging model
+        forging_details = Forging.objects.filter(heat_number__in=heat_numbers)
+        for fd in forging_details:
+            try:
+                component_cost = Masterlist.objects.get(component=fd.component).cost
+            except Masterlist.DoesNotExist:
+                component_cost = 0
+            
+            production_value = fd.production * component_cost
+            response_data["production_details"].append({
+                "batch_number": fd.batch_number,
+                "date": fd.date,
+                "shift": fd.shift,
+                "component": fd.component,
+                "customer": fd.customer,
+                "heat_number": fd.heat_number,
+                "line": fd.line,
+                "target": fd.target,
+                "production": fd.production,
+                "rework": fd.rework,
+                "component_cost": component_cost,
+                "production_value": production_value
+            })
+            response_data["cost_summary"]["total_production_value"] += production_value
+        
+        # Dispatch Details with value calculation
+        dispatch_details = dispatch.objects.filter(heat_no__in=heat_numbers)
+        for dd in dispatch_details:
+            try:
+                component_cost = Masterlist.objects.get(component=dd.component).cost
+            except Masterlist.DoesNotExist:
+                component_cost = 0
+            
+            dispatch_value = dd.pices * component_cost
+            response_data["dispatch_details"].append({
+                "date": dd.date,
+                "component": dd.component,
+                "pices": dd.pices,
+                "invoiceno": dd.invoiceno,
+                "heat_no": dd.heat_no,
+                "batch_number": dd.batch_number,
+                "target1": dd.target1,
+                "total_produced": dd.total_produced,
+                "remaining": dd.remaining,
+                "component_cost": component_cost,
+                "dispatch_value": dispatch_value
+            })
+            response_data["cost_summary"]["total_dispatch_value"] += dispatch_value
+        
+        # Add summary information
+        response_data["summary"] = {
+            "total_received": sum(rm['weight'] for rm in response_data["raw_materials"]),
+            "total_blocks_created": len(response_data["block_materials"]),
+            "total_dispatch_records": len(response_data["dispatch_details"]),
+            "unique_components": len(set(bm['component'] for bm in response_data["block_materials"])),
+            "unique_customers": len(set(bm['customer'] for bm in response_data["block_materials"]))
+        }
+        
+        return Response(response_data, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

@@ -111,6 +111,6 @@ urlpatterns = [
     path('masterlistn/<int:masterlist_pk>/documents/<int:doc_pk>/set-current/', views.document_set_current, name='document-set-current'),
     path('api/masterlist/missing_documents_report/', views.missing_documents_report, name='missing_documents_report'),
 
-
-     
+    path('api/invoice-list/', invoice_list, name='invoice_list'),
+    path('api/invoice-details/<str:invoice_no>/', invoice_details, name='invoice_details'),
 ]

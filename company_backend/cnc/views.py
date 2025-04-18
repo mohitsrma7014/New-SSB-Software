@@ -934,7 +934,7 @@ def get_fy_trends(request, year=None):
             entry.cnc_height + entry.cnc_od + entry.cnc_bore +
             entry.cnc_groove + entry.cnc_dent
         )
-        if entry.setup == "II":
+        if  entry.setup in["II", "Broch"] or entry.mc_type == "VMC":
             monthly_data[month_year]["cnc"]["total_production"] += entry.production
         monthly_data[month_year]["cnc"]["total_rejection"] += cnc_rejection
         monthly_data[month_year]["cnc"]["rejection_cost"] += calculate_rejection_cost(entry.component, cnc_rejection)
@@ -942,7 +942,7 @@ def get_fy_trends(request, year=None):
         pre_mc_rejection = (
             entry.pre_mc_height + entry.pre_mc_od + entry.pre_mc_bore
         )
-        if entry.setup == "II":
+        if  entry.setup in["II", "Broch"] or entry.mc_type == "VMC":
             monthly_data[month_year]["pre_mc"]["total_production"] += entry.production
         monthly_data[month_year]["pre_mc"]["total_rejection"] += pre_mc_rejection
         monthly_data[month_year]["pre_mc"]["rejection_cost"] += calculate_rejection_cost(entry.component, pre_mc_rejection)
@@ -1097,7 +1097,7 @@ def get_fy_trendscomponent(request, year=None):
             entry.cnc_height + entry.cnc_od + entry.cnc_bore +
             entry.cnc_groove + entry.cnc_dent
         )
-        if entry.setup == "II":
+        if entry.setup in["II", "Broch"] or entry.mc_type == "VMC":
             monthly_data[month_year]["cnc"]["total_production"] += entry.production
         monthly_data[month_year]["cnc"]["total_rejection"] += cnc_rejection
         monthly_data[month_year]["cnc"]["rejection_cost"] += calculate_rejection_cost(entry.component, cnc_rejection)
@@ -1105,7 +1105,7 @@ def get_fy_trendscomponent(request, year=None):
         pre_mc_rejection = (
             entry.pre_mc_height + entry.pre_mc_od + entry.pre_mc_bore
         )
-        if entry.setup == "II":
+        if entry.setup in ["II", "Broch"]  or entry.mc_type == "VMC":
             monthly_data[month_year]["pre_mc"]["total_production"] += entry.production
         monthly_data[month_year]["pre_mc"]["total_rejection"] += pre_mc_rejection
         monthly_data[month_year]["pre_mc"]["rejection_cost"] += calculate_rejection_cost(entry.component, pre_mc_rejection)
