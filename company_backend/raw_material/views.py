@@ -4394,13 +4394,13 @@ def invoice_list(request):
     }, status=status.HTTP_200_OK)
 
 @api_view(['GET'])
-def invoice_details(request, invoice_no):
+def invoice_details(request):
     try:
-        # Get raw materials for this invoice
-        # Decode the URL-encoded invoice number
-        decoded_invoice_no = unquote(invoice_no)
+        invoice_no = request.GET.get('invoice_no')
+       
+        print("Decoded invoice no:", invoice_no)
 
-        raw_materials = RawMaterial.objects.filter(invoice_no=decoded_invoice_no)
+        raw_materials = RawMaterial.objects.filter(invoice_no=invoice_no)
         
         if not raw_materials.exists():
             return Response(
